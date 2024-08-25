@@ -1238,6 +1238,11 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     "use-variant",
                     shortcutElement.dataset.variantFirst === "true"
                 );
+                this.#onHoverStrike(shortcutElement, true);
+            });
+
+            shortcutElement.addEventListener("mouseenter", () => {
+                this.#onHoverStrike(shortcutElement, false);
             });
 
             shortcutElement.addEventListener("contextmenu", () => {
@@ -1264,6 +1269,27 @@ class PF2eHudPersistent extends makeAdvancedHUD(
             for (const auxilaryElement of auxilaryElements) {
                 auxilaryElement.dataset.tooltip = auxilaryElement.innerHTML.trim();
             }
+        }
+    }
+
+    async #onHoverStrike(shortcutElement: HTMLElement, leave: boolean) {
+        if (TacticalGrid === undefined) return;
+
+        const shortcut = this.getShortcutFromElement<Shortcut>(shortcutElement);
+
+        if (!shortcut || shortcut.isEmpty || shortcut.isDisabled || !shortcut?.strike) return;
+
+        const actor = this.actor!;
+
+        const token = actor.getActiveTokens()[0];
+
+        if (token === undefined || shortcut.itemId === undefined) return;
+
+        if ( leave) {
+            TacticalGrid.clearRangeHighlight(token);
+        } else {
+            const item = actor.items.get(shortcut.itemId);
+            TacticalGrid.rangeHighlight(token, { item });
         }
     }
 
