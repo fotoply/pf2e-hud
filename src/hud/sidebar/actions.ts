@@ -27,6 +27,7 @@ import { getItemFromElement } from "../shared/base";
 import { PF2eHudSidebar, SidebarContext, SidebarName, SidebarRenderOptions } from "./base";
 import { EXTRAS_ACTIONS_UUIDS } from "./extras";
 import { SKILL_ACTIONS_UUIDS } from "./skills";
+import {hud} from "../../main";
 
 const ACTION_TYPES = {
     action: { sort: 0, label: "PF2E.ActionsActionsHeader" },
@@ -477,6 +478,24 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
             }
         });
 
+        addListenerAll(html,
+            "[data-item-id]",
+            "mouseenter",
+            (event, button) => {
+                const action = getStrike<CharacterStrike>(button);
+                const item = action?.item;
+                hoverItem(this.actor.getActiveTokens()[0], item, false);
+            });
+
+        addListenerAll(html,
+            "[data-item-id]",
+            "mouseleave",
+            (event, button) => {
+                const action = getStrike<CharacterStrike>(button);
+                const item = action?.item;
+                hoverItem(this.actor.getActiveTokens()[0], item, true);
+            });
+
         addListenerAll(
             html,
             "select[data-action='link-ammo']",
@@ -493,6 +512,16 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
         addListenerAll(html, "[data-action='auxiliary-action'] select", (event, button) => {
             event.stopPropagation();
         });
+    }
+}
+
+async function hoverItem(token: TokenPF2e, item: WeaponPF2e<CharacterPF2e> | undefined, leave: boolean) {
+    if(token === undefined || item === undefined) return;
+
+    if (leave) {
+        TacticalGrid.clearRangeHighlight(token);
+    } else {
+        TacticalGrid.rangeHighlight(token, {item});
     }
 }
 
