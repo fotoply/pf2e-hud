@@ -84,6 +84,22 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
             }
         }
 
+        addListenerAll(html,
+            "[data-item-id]",
+            "mouseenter",
+            (event, button) => {
+                const { spell, castRank, collection, slotId } = getSpellFromElement(this.actor, button);
+                hoverItem(this.actor.getActiveTokens()[0], spell, false);
+            });
+
+        addListenerAll(html,
+            "[data-item-id]",
+            "mouseleave",
+            (event, button) => {
+                const { spell, castRank, collection, slotId } = getSpellFromElement(this.actor, button);
+                hoverItem(this.actor.getActiveTokens()[0], spell, true);
+            });
+
         addListenerAll(html, "[data-action]:not(disabled)", (event, el) => {
             const action = el.dataset.action as SpellsActionEvent;
 
@@ -125,6 +141,17 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
         });
     }
 }
+
+async function hoverItem(token: Token<TokenDocument<Scene>>, item: SpellPF2e | null | undefined, leave: boolean) {
+    if(token === undefined || item === undefined) return;
+
+    if (leave) {
+        TacticalGrid.clearRangeHighlight(token);
+    } else {
+        TacticalGrid.rangeHighlight(token, {item});
+    }
+}
+
 
 function getSpellFromElement(actor: CreaturePF2e, target: HTMLElement) {
     const spellRow = htmlClosest(target, "[data-item-id]");
