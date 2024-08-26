@@ -481,19 +481,17 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
         addListenerAll(html,
             "[data-item-id]",
             "mouseenter",
-            (event, button) => {
+            (_, button) => {
                 const action = getStrike<CharacterStrike>(button);
                 const item = action?.item;
-                hoverItem(this.actor.getActiveTokens()[0], item, false);
+                hoverItem(this.actor.getActiveTokens()[0], item);
             });
 
         addListenerAll(html,
             "[data-item-id]",
             "mouseleave",
-            (event, button) => {
-                const action = getStrike<CharacterStrike>(button);
-                const item = action?.item;
-                hoverItem(this.actor.getActiveTokens()[0], item, true);
+            (_, __) => {
+                hoverItem(this.actor.getActiveTokens()[0], undefined);
             });
 
         addListenerAll(
@@ -515,10 +513,10 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
     }
 }
 
-async function hoverItem(token: TokenPF2e, item: WeaponPF2e<CharacterPF2e> | undefined, leave: boolean) {
-    if(token === undefined || item === undefined) return;
+async function hoverItem(token: Token<TokenDocument<Scene>>, item: WeaponPF2e | null | undefined) {
+    if(token === undefined) return;
 
-    if (leave) {
+    if (item === null || item === undefined) {
         TacticalGrid.clearRangeHighlight(token);
     } else {
         TacticalGrid.rangeHighlight(token, {item});

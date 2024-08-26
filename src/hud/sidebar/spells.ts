@@ -87,17 +87,16 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
         addListenerAll(html,
             "[data-item-id]",
             "mouseenter",
-            (event, button) => {
-                const { spell, castRank, collection, slotId } = getSpellFromElement(this.actor, button);
-                hoverItem(this.actor.getActiveTokens()[0], spell, false);
+            (_, button) => {
+                const spell = getSpellFromElement(this.actor, button);
+                hoverItem(this.actor.getActiveTokens()[0], spell.spell);
             });
 
         addListenerAll(html,
             "[data-item-id]",
             "mouseleave",
-            (event, button) => {
-                const { spell, castRank, collection, slotId } = getSpellFromElement(this.actor, button);
-                hoverItem(this.actor.getActiveTokens()[0], spell, true);
+            (_, __) => {
+                hoverItem(this.actor.getActiveTokens()[0], undefined);
             });
 
         addListenerAll(html, "[data-action]:not(disabled)", (event, el) => {
@@ -142,10 +141,10 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
     }
 }
 
-async function hoverItem(token: Token<TokenDocument<Scene>>, item: SpellPF2e | null | undefined, leave: boolean) {
-    if(token === undefined || item === undefined) return;
+async function hoverItem(token: Token<TokenDocument<Scene>>, item: SpellPF2e | null | undefined) {
+    if(token === undefined) return;
 
-    if (leave) {
+    if (item === null || item === undefined) {
         TacticalGrid.clearRangeHighlight(token);
     } else {
         TacticalGrid.rangeHighlight(token, {item});
