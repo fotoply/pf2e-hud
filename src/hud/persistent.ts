@@ -1273,11 +1273,11 @@ class PF2eHudPersistent extends makeAdvancedHUD(
     }
 
     async #onHoverStrike(shortcutElement: HTMLElement, leave: boolean) {
-        if (TacticalGrid === undefined) return;
-
         const shortcut = this.getShortcutFromElement<Shortcut>(shortcutElement);
 
-        if (!shortcut || shortcut.isEmpty || shortcut.isDisabled || !shortcut?.strike) return;
+        if (TacticalGrid === undefined) return;
+
+        if (!shortcut || shortcut.isEmpty || shortcut.isDisabled) return;
 
         const actor = this.actor!;
 
