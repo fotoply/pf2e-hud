@@ -2,7 +2,6 @@ import {
     R,
     addListener,
     addListenerAll,
-    canObserveActor,
     createHook,
     elementDataset,
     getDispositionColor,
@@ -18,7 +17,7 @@ import {
 } from "foundry-pf2e";
 import Sortable, { SortableEvent } from "sortablejs";
 import { BaseRenderOptions, BaseSettings, PF2eHudBase } from "./base/base";
-import { HealthData, getHealth } from "./shared/base";
+import { HealthData, getHealth, userCanObserveActor } from "./shared/base";
 
 // Hooks.on("getSceneControlButtons", (controls) => {
 //     controls[0].tools.push({
@@ -34,7 +33,7 @@ import { HealthData, getHealth } from "./shared/base";
 //     });
 // });
 
-class PF2eHudTracker extends PF2eHudBase<TrackerSettings> {
+class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOptions> {
     #hoverTokenHook = createHook("hoverToken", this.#onHoverToken.bind(this));
     #targetTokenHook = createHook("targetToken", this.#refreshTargetDisplay.bind(this));
     #renderEffectsHook = createHook("renderEffectsPanel", this.#onRenderEffectsPanel.bind(this));
@@ -218,7 +217,7 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings> {
                 canPing: canPing && combatant.sceneId === canvas.scene?.id,
                 css: css.join(" "),
                 isOwner,
-                health: actor && canObserveActor(actor) ? getHealth(actor) : undefined,
+                health: actor && userCanObserveActor(actor) ? getHealth(actor) : undefined,
                 color: dispositionColor.rgb.map((x) => x * 255).join(", "),
             };
 
