@@ -248,6 +248,10 @@ class PF2eHudTooltip extends PF2eHudBaseToken<TooltipSettings, ActorPF2e, Toolti
         const enableDraw = enabled && this.getSetting("drawDistance") > 0;
         this.#tokenRefreshWrapper.toggle(enableDraw);
         this.#canvasTearDownHook.toggle(enableDraw);
+
+        if (!enabled && this.rendered) {
+            this.close();
+        }
     }
 
     _tokenCleanup() {
@@ -344,7 +348,6 @@ class PF2eHudTooltip extends PF2eHudBaseToken<TooltipSettings, ActorPF2e, Toolti
         const setting = this.getSetting("type");
         const isOwner = actor.isOwner;
         const isObserver = userCanObserveActor(actor);
-        console.log(isObserver);
 
         const extended = (setting === "owned" && isOwner) || (setting === "observed" && isObserver);
         if (!extended) {

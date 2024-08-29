@@ -135,8 +135,11 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         this.#combatTrackerHook.toggle(enabled);
         this.#renderEffectsHook.toggle(enabled);
 
-        if (enabled && this.combat) this.render(true);
-        else if (!enabled && this.rendered) this.close();
+        if (enabled && this.combat) {
+            this.render(true);
+        } else if (!enabled && this.rendered) {
+            this.close();
+        }
 
         // toggleControlTool("pf2e-hud-tracker", enabled);
 
@@ -181,10 +184,17 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
             const playersCanSeeName = !tokenSetsNameVisibility || combatant.playersCanSeeName;
             const dispositionColor = getDispositionColor(actor);
 
-            const texture = {
+            const texture: TrackerTexture = {
                 ...((useTextureScaling && combatant.token?.texture) || { scaleX: 1, scaleY: 1 }),
                 img: await this.tracker._getCombatantThumbnail(combatant),
             };
+
+            if (texture.scaleX >= 1.2 || texture.scaleY >= 1.2) {
+                const scale = texture.scaleX > texture.scaleY ? texture.scaleX : texture.scaleY;
+                const ringPercent = 100 - Math.floor(((scale - 0.7) / scale) * 100);
+                const limitPercent = 100 - Math.floor(((scale - 0.8) / scale) * 100);
+                texture.mask = `radial-gradient(circle at center, black ${ringPercent}%, rgba(0, 0, 0, 0.2) ${limitPercent}%)`;
+            }
 
             const toggleName = (() => {
                 if (!isGM || !tokenSetsNameVisibility || actor?.alliance === "party") return;
@@ -648,6 +658,13 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
 
 type EventAction = "toggle-expand" | "delay-turn";
 
+type TrackerTexture = {
+    scaleX: number;
+    scaleY: number;
+    img: string;
+    mask?: string;
+};
+
 type TrackerTurn = {
     id: string;
     index: number;
@@ -661,7 +678,7 @@ type TrackerTurn = {
     hasRolled: boolean;
     health: HealthData | undefined;
     css: string;
-    texture: { scaleX: number; scaleY: number; img: string };
+    texture: TrackerTexture;
     toggleName: Maybe<{
         tooltip: string;
         active: boolean;

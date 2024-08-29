@@ -595,7 +595,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
         }
     }
 
-    protected _onFirstRender(context: PersistentContext, options: PersistentRenderOptions) {
+    _onFirstRender(context: PersistentContext, options: PersistentRenderOptions) {
         document.getElementById("ui-left")?.append(this.element);
     }
 
@@ -711,6 +711,10 @@ class PF2eHudPersistent extends makeAdvancedHUD(
 
     isValidActor(actor: Maybe<ActorPF2e>): actor is ActorPF2e {
         return super.isValidActor(actor) && actor.isOwner;
+    }
+
+    acceptsActor(actor: Maybe<ActorPF2e>) {
+        return this.enabled && !hud.persistent.savedActor && this.isValidActor(actor);
     }
 
     flash() {
@@ -1043,10 +1047,21 @@ class PF2eHudPersistent extends makeAdvancedHUD(
             editAvatar(actor);
         });
 
-        if (!game.ready) return;
+        if (game.ready) {
+            requestAnimationFrame(() => {
+                this.#setupAvatar(html);
+            });
+        } else {
+            Hooks.once("ready", () => {
+                this.#setupAvatar(html);
+            });
+        }
+    }
 
+    #setupAvatar(html: HTMLElement) {
+        const actor = this.actor;
         const avatarElement = htmlQuery(html, ".avatar");
-        if (!avatarElement) return;
+        if (!avatarElement || !actor) return;
 
         const avatarFlag = getFlag<AvatarData>(actor, "avatar");
         if (!avatarFlag) {
@@ -2676,7 +2691,7 @@ type PartName = "menu" | "main" | "portrait" | "effects";
 
 type PersistentHudActor = CharacterPF2e | NPCPF2e;
 
-type PersistentRenderOptions = BaseActorRenderOptions & {
+type PersistentRenderOptions = Omit<BaseActorRenderOptions, "parts"> & {
     parts: PartName[];
     cleaned: boolean;
     showUsers: boolean;
