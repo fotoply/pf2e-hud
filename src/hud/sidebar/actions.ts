@@ -482,6 +482,7 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
             "[data-item-id]",
             "mouseenter",
             (_, button) => {
+                if (button.className.includes("option-toggle")) return;
                 const action = getStrike<CharacterStrike>(button);
                 const item = action?.item;
                 hoverItem(this.actor.getActiveTokens()[0], item);
