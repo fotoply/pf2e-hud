@@ -88,6 +88,7 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
             "[data-item-id]",
             "mouseenter",
             (_, button) => {
+                if (button.className.includes("option-toggle")) return;
                 const spell = getSpellFromElement(this.actor, button);
                 hoverItem(this.actor.getActiveTokens()[0], spell.spell);
             });
