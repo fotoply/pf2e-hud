@@ -28,7 +28,6 @@ import {
     isValidStance,
     localize,
     objectHasKey,
-    openAttackpopup,
     resolveMacroActor,
     setFlag,
     templateLocalize,
@@ -1371,6 +1370,8 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     return actor.getStatistic(slug)?.roll({ event });
                 } else if (shortcut.actionId === "recall-knowledge" && !shortcut.statistic) {
                     return rollRecallKnowledge(actor);
+                } else if (shortcut.actionId === "earnIncome") {
+                    return game.pf2e.actions.earnIncome(actor);
                 }
 
                 rollStatistic(actor, event, shortcut);
@@ -1470,8 +1471,10 @@ class PF2eHudPersistent extends makeAdvancedHUD(
 
             case "open-attack-popup": {
                 if (actor.isOfType("character")) {
-                    const { left, top, height } = this.mainElement!.getBoundingClientRect();
-                    openAttackpopup(actor, el.dataset, { left, top: top - height - 100 });
+                    game.pf2e.rollActionMacro({
+                        ...el.dataset,
+                        actorUUID: actor.uuid,
+                    });
                 }
                 break;
             }
