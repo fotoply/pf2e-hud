@@ -73,16 +73,16 @@ import {
     useAction,
     variantLabel,
 } from "./sidebar/actions";
-import { SidebarMenu, getSidebars } from "./sidebar/base";
+import { SidebarMenu, getAnnotationTooltip, getSidebars } from "./sidebar/base";
 import {
     ACTION_IMAGES,
+    ACTION_VARIANTS,
     SkillVariantDataset,
     getLoreSlug,
     getMapLabel,
     getSkillVariantName,
     rollStatistic,
 } from "./sidebar/skills";
-import { getAnnotationTooltip } from "./sidebar/spells";
 
 const PARTS = ["menu", "portrait", "main", "effects"] as const;
 const ROMAN_RANKS = ["", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ"] as const;
@@ -165,9 +165,6 @@ class PF2eHudPersistent extends makeAdvancedHUD(
             "autoSet",
             "keepLast",
             "fontSize",
-            "sidebarFontSize",
-            "sidebarHeight",
-            "multiColumns",
             "shortcutSlots",
             "ownerShortcuts",
             "autoFillNpc",
@@ -687,6 +684,10 @@ class PF2eHudPersistent extends makeAdvancedHUD(
         if (actor) {
             actor.apps[this.id] = this;
 
+            if (actor.token) {
+                actor.token.baseActor.apps[this.id] = this;
+            }
+
             const tokens = token ? [token] : actor.getActiveTokens();
 
             for (const token of tokens) {
@@ -1058,7 +1059,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
     }
 
     #setupAvatar(html: HTMLElement) {
-        const actor = this.actor;
+        const actor = this.worldActor;
         const avatarElement = htmlQuery(html, ".avatar");
         if (!avatarElement || !actor) return;
 
@@ -1201,8 +1202,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     const confirm = await confirmAction("delete");
                     if (!confirm) return;
 
-                    await unsetFlag(worldActor, "persistent.shortcuts", game.user.id);
-                    return this.#renderIfUnlinkedActor();
+                    return unsetFlag(worldActor, "persistent.shortcuts", game.user.id);
                 }
 
                 case "fill-shortcuts": {
@@ -1248,13 +1248,12 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     if (!confirm) return;
 
                     await unsetFlag(worldActor, "persistent.shortcuts", game.user.id);
-                    await setFlag(
+                    return setFlag(
                         worldActor,
                         "persistent.shortcuts",
                         game.user.id,
                         foundry.utils.deepClone(userShortcuts)
                     );
-                    return this.#renderIfUnlinkedActor();
                 }
             }
         });
@@ -1346,7 +1345,6 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                 groupIndex,
                 index
             );
-            this.#renderIfUnlinkedActor();
         }
     }
 
@@ -1388,7 +1386,21 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     return item.toMessage(event);
                 }
 
-                if (setting === "confirm" && !(await confirmUse(item))) return;
+                if (shortcut.notCarried && shortcut.annotation) {
+                    if (setting === "confirm") {
+                        const type = localize("sidebars.annotation", shortcut.annotation);
+                        const name = item.name;
+                        const confirm = await confirmShortcut("draw", { type, name });
+                        if (!confirm) return;
+                    }
+
+                    return changeCarryType(actor, item, 1, shortcut.annotation);
+                }
+
+                if (setting === "confirm") {
+                    const confirm = await confirmUse(item);
+                    if (!confirm) return;
+                }
 
                 return consumeItem(event, item);
             }
@@ -1434,7 +1446,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     if (!annotation || !parentItem) return;
 
                     if (setting) {
-                        const type = localize("sidebars.spells.action", annotation);
+                        const type = localize("sidebars.annotation", annotation);
                         const name = parentItem.name;
                         const confirm = await confirmShortcut("draw", { type, name });
 
@@ -1765,13 +1777,6 @@ class PF2eHudPersistent extends makeAdvancedHUD(
             this.#overrideShortcutData();
         } else {
             await setFlag(worldActor, "persistent.shortcuts", game.user.id, groupIndex, group);
-            this.#renderIfUnlinkedActor();
-        }
-    }
-
-    #renderIfUnlinkedActor() {
-        if (this.actor?.isToken) {
-            this.render();
         }
     }
 
@@ -1781,7 +1786,6 @@ class PF2eHudPersistent extends makeAdvancedHUD(
         const shortcutData = foundry.utils.deepClone(this.#shortcutData);
         await unsetFlag(worldActor, "persistent.shortcuts", userId);
         await setFlag(worldActor, "persistent.shortcuts", userId, shortcutData);
-        this.#renderIfUnlinkedActor();
     }
 
     async #fillShortcut(
@@ -1937,7 +1941,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
             );
         };
 
-        const actor = this.actor as ActorPF2e;
+        const actor = this.actor as CreaturePF2e;
         if (!actor || !groupIndex || isNaN(Number(groupIndex)) || !index || isNaN(Number(index))) {
             return throwError();
         }
@@ -2004,6 +2008,12 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     name = `${game.i18n.localize("PF2E.Lore")}: ${name}`;
                 }
 
+                const actionCost = isLore
+                    ? undefined
+                    : (shortcutData.variant &&
+                          ACTION_VARIANTS[shortcutData.actionId]?.[shortcutData.variant]?.cost) ||
+                      item?.actionCost;
+
                 const img = isLore
                     ? ACTION_IMAGES.lore
                     : ACTION_IMAGES[shortcutData.actionId] ??
@@ -2017,7 +2027,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     item,
                     name,
                     img,
-                    cost: getCost(isLore ? undefined : item?.actionCost),
+                    cost: getCost(actionCost),
                 } satisfies SkillShortcut as T;
             }
 
@@ -2041,12 +2051,16 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     return hasItemWithSourceId(actor, item.system.selfEffect.uuid, "effect");
                 })();
 
-                if (isStance) this.#hasStances = true;
+                if (isStance) {
+                    this.#hasStances = true;
+                }
+
+                const cannotUseStances = isStance && !canUseStances(actor);
 
                 return returnShortcut({
                     ...shortcutData,
                     isDisabled: disabled,
-                    isFadedOut: disabled || (isStance && !canUseStances(actor)),
+                    isFadedOut: disabled || cannotUseStances,
                     item,
                     isActive,
                     img: item ? getActionImg(item, true) : shortcutData.img,
@@ -2054,6 +2068,9 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     frequency,
                     hasEffect,
                     cost: getCost(item?.actionCost),
+                    subtitle: cannotUseStances
+                        ? localize("sidebars.actions.outOfCombat")
+                        : undefined,
                 } satisfies ActionShortcut as T);
             }
 
@@ -2194,6 +2211,7 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     isStaff,
                     parentItem,
                     annotation,
+                    subtitle: entryLabel,
                 } satisfies SpellShortcut as T);
             }
 
@@ -2225,6 +2243,9 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                 const img =
                     item?.system.spell?.img ?? item?.img ?? (shortcutData as { img: string }).img;
 
+                const notCarried = !!item && item.carryType !== "held";
+                const annotation = notCarried ? getActionAnnotation(item) : undefined;
+
                 let name = item?.name ?? (shortcutData as { name: string }).name;
                 if (uses !== undefined && quantity > 1) name += ` x ${quantity}`;
 
@@ -2234,7 +2255,10 @@ class PF2eHudPersistent extends makeAdvancedHUD(
                     rank: consumableRank(item, true),
                     quantity: uses ?? quantity,
                     categoryIcon,
-                    isFadedOut: isOutOfStock,
+                    isFadedOut: isOutOfStock || notCarried,
+                    annotation,
+                    subtitle: annotation ? getAnnotationTooltip(annotation) : undefined,
+                    notCarried,
                     isGeneric,
                     uses,
                     item,
@@ -2536,6 +2560,7 @@ type ShortcutData =
 
 type BaseShortCut<T extends ShortcutType> = ShortcutDataBase<T> & {
     name: string;
+    subtitle?: string;
     css?: string[];
     isEmpty?: boolean;
     img: string;
@@ -2590,13 +2615,15 @@ type ToggleShortcut = BaseShortCut<"toggle"> &
 
 type ConsumableShortcut = BaseShortCut<"consumable"> &
     ConsumableShortcutData & {
-        item: ConsumablePF2e<ActorPF2e> | undefined;
+        item: ConsumablePF2e<CreaturePF2e> | undefined;
         cost: CostValue;
         quantity: number;
         uses: number | undefined;
         isGeneric: boolean;
         rank: RomanRank | undefined;
         categoryIcon: string | undefined;
+        notCarried: boolean;
+        annotation: AuxiliaryActionPurpose | undefined;
     };
 
 type BaseAttackShortcut = BaseShortCut<"attack"> &

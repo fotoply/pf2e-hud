@@ -73,30 +73,97 @@ Hooks.once("setup", () => {
         },
     });
 
+    // popup
+
     registerSetting({
-        key: "popupOnCursor",
+        key: "popup.onCursor",
         type: Boolean,
         default: true,
         scope: "client",
     });
 
     registerSetting({
-        key: "closePopupOnSendToChat",
+        key: "popup.fontSize",
+        type: Number,
+        range: {
+            min: 10,
+            max: 30,
+            step: 1,
+        },
+        default: 14,
+        scope: "client",
+        onChange: () => {
+            for (const popup of PF2eHudPopup.apps) {
+                popup.render();
+            }
+        },
+    });
+
+    registerSetting({
+        key: "popup.closeOnSendToChat",
         type: Boolean,
         default: false,
         scope: "client",
     });
 
+    // sidebar
+
     registerSetting({
-        key: "hideUntrained",
+        key: "sidebar.fontSize",
+        type: Number,
+        range: {
+            min: 10,
+            max: 30,
+            step: 1,
+        },
+        default: 14,
+        scope: "client",
+        onChange: () => {
+            refreshSidebar();
+        },
+    });
+
+    registerSetting({
+        key: "sidebar.multiColumns",
+        type: Number,
+        default: 5,
+        range: {
+            min: 1,
+            max: 5,
+            step: 1,
+        },
+        scope: "client",
+        onChange: () => {
+            refreshSidebar();
+        },
+    });
+
+    registerSetting({
+        key: "sidebar.maxHeight",
+        type: Number,
+        range: {
+            min: 50,
+            max: 100,
+            step: 1,
+        },
+        default: 100,
+        scope: "client",
+        onChange: () => {
+            refreshSidebar();
+        },
+    });
+
+    registerSetting({
+        key: "sidebar.hideUntrained",
         type: Boolean,
         default: false,
         scope: "client",
         onChange: () => {
-            HUDS.token.sidebar?.render();
-            HUDS.persistent.sidebar?.render();
+            refreshSidebar();
         },
     });
+
+    //
 
     registerKeybind("setActor", {
         onUp: () => HUDS.persistent.setSelectedToken(),
@@ -177,18 +244,21 @@ Hooks.on("renderSettingsConfig", (app: SettingsConfig, $html: JQuery) => {
     const html = $html[0];
     const tab = htmlQuery(html, `.tab[data-tab="${MODULE.id}"]`);
 
-    for (const hud of Object.values(HUDS)) {
-        const group = htmlQuery(tab, `[data-setting-id^="${MODULE.id}.${hud.key}."]`);
+    const huds = Object.values(HUDS);
+    const settings = huds.map(({ key }) => key).concat(["popup", "sidebar"]);
+
+    for (const key of settings) {
+        const group = htmlQuery(tab, `[data-setting-id^="${MODULE.id}.${key}."]`);
         if (!group) continue;
 
         const titleElement = createHTMLElement("h3", {
-            innerHTML: localize("settings", hud.key, "title"),
+            innerHTML: localize("settings", key, "title"),
         });
 
         group.before(titleElement);
+    }
 
-        //
-
+    for (const hud of huds) {
         const gmOnlyLabel = localize("gmOnly");
         const reloadLabel = localize("reload");
 
@@ -210,6 +280,11 @@ Hooks.on("renderSettingsConfig", (app: SettingsConfig, $html: JQuery) => {
         }
     }
 });
+
+function refreshSidebar() {
+    HUDS.token.sidebar?.render();
+    HUDS.persistent.sidebar?.render();
+}
 
 function getFadingElements() {
     const list = [

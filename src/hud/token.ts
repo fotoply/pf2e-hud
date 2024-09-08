@@ -5,7 +5,6 @@ import {
     createWrapper,
     htmlQuery,
     libWrapper,
-    registerWrapper,
     render,
 } from "foundry-pf2e";
 import { hud } from "../main";
@@ -77,9 +76,6 @@ class PF2eHudToken extends makeAdvancedHUD(
             "mode",
             "scaleDimensions",
             "fontSize",
-            "sidebarFontSize",
-            "sidebarHeight",
-            "multiColumns",
             "closeAllOnCLick",
             "closeOnSendToChat",
             "closeOnSpell",

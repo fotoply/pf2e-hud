@@ -29,17 +29,39 @@
                 "name": "Use Modifiers",
                 "hint": "Display modifiers instead of the difficulty value in the different HUD elements."
             },
-            "popupOnCursor": {
-                "name": "Popup on Cursor",
-                "hint": "The module popup will be centered on the position of the cursor when it is first rendered (instead of showing up in the center of the viewport)."
+            "popup": {
+                "title": "Popup",
+                "onCursor": {
+                    "name": "Show on Cursor",
+                    "hint": "The module popup will be centered on the cursor when it is first rendered (instead of showing up in the center of the viewport)."
+                },
+                "fontSize": {
+                    "name": "Font Size",
+                    "hint": "The popup dynamically scales with the font size. NOTE: The module was designed to use a font size of 14."
+                },
+                "closeOnSendToChat": {
+                    "name": "Close on Send-to-Chat",
+                    "hint": "Should the popup be closed when sending an item to chat from the header button."
+                }
             },
-            "hideUntrained": {
-                "name": "Hide Untrained",
-                "hint": "Should skill actions be hidden from the sidebar if the character isn't proficient with them."
-            },
-            "closePopupOnSendToChat": {
-                "name": "Close Popup on Send-to-Chat",
-                "hint": "Should the popup be closed when sending an item to chat from the header button."
+            "sidebar": {
+                "title": "Sidebars",
+                "hideUntrained": {
+                    "name": "Hide Untrained",
+                    "hint": "Should skill actions be hidden from the sidebar if the character isn't proficient with them."
+                },
+                "fontSize": {
+                    "name": "Font Size",
+                    "hint": "The sidebars dynamically scale with the font size. NOTE: The module was designed to use a font size of 14."
+                },
+                "multiColumns": {
+                    "name": "Multi Columns",
+                    "hint": "When a sidebar's height is bigger than its max-height, it will be split into up to x columns. NOTE: Firefox has a weird quirk of forcing horizontal scrolling when using this feature."
+                },
+                "maxHeight": {
+                    "name": "Max Height",
+                    "hint": "Sets the sidebars max height as a percentage of the viewport."
+                }
             },
             "shared": {
                 "enabled": {
@@ -49,18 +71,6 @@
                 "fontSize": {
                     "name": "Font Size",
                     "hint": "The HUD element dynamically scales with the font size. NOTE: The module was designed to use a font size of 14."
-                },
-                "sidebarFontSize": {
-                    "name": "Sidebars Font Size",
-                    "hint": "Sidebars opened by this HUD scale with the font size. NOTE: The module was designed to use a font size of 14."
-                },
-                "sidebarHeight": {
-                    "name": "Sidebars Max Height",
-                    "hint": "Sets the sidebars max height as a percentage of the allotted height space."
-                },
-                "multiColumns": {
-                    "name": "Multi Columns Sidebars",
-                    "hint": "When a sidebar's height is bigger than its max-height, it will be split into up to x columns. Note that firefox has a weird quirk of forcing horizontal scrolling when using this feature."
                 },
                 "showAlliance": {
                     "name": "Alliance Button",
@@ -380,7 +390,14 @@
                 "stowedWeapons": {
                     "shown": "Stowed Weapons are shown",
                     "hidden": "Stowed Weapons are hidden"
-                }
+                },
+                "outOfCombat": "[Ctrl + Click] to force"
+            },
+            "annotation": {
+                "pick-up": "Pick Up",
+                "retrieve": "Retrieve",
+                "sheathe": "Sheathe",
+                "draw": "Draw"
             },
             "items": {
                 "title": "Inventory"
@@ -391,13 +408,7 @@
                 "charges": "Charges",
                 "cast": "Cast the Spell",
                 "draw": "Draw Consumable",
-                "broken": "Broken Spell",
-                "action": {
-                    "pick-up": "Pick Up",
-                    "retrieve": "Retrieve",
-                    "sheathe": "Sheathe",
-                    "draw": "Draw"
-                }
+                "broken": "Broken Spell"
             },
             "skills": {
                 "title": "Skills",
@@ -440,6 +451,11 @@
                 "dc": "DC",
                 "unspecific": "Unspecific",
                 "specific": "Specific"
+            },
+            "drive": {
+                "drive1": "Drive <span class=\"action-glyph\">1</span>",
+                "drive2": "Drive <span class=\"action-glyph\">2</span>",
+                "drive3": "Drive <span class=\"action-glyph\">3</span>"
             }
         },
         "utils": {
