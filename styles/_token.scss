@@ -1,4 +1,5 @@
-[id^="pf2e-hud-token"] {
+#pf2e-hud-token,
+#pf2e-hud-token-main {
     --anchor-margin: 4px;
 
     font-size: var(--font-size);
@@ -52,6 +53,10 @@
                 margin-block: var(--hr-margin);
             }
         }
+    }
+
+    &.sidebar-opened {
+        visibility: hidden;
     }
 }
 
@@ -179,11 +184,5 @@
                 padding-bottom: var(--panel-spacer-gap);
             }
         }
-    }
-}
-
-body:has(#pf2e-hud-sidebar .inner.token) {
-    #pf2e-hud-token-main {
-        visibility: hidden;
     }
 }

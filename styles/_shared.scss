@@ -1,6 +1,6 @@
 $panel-gap: 5px;
 
-[id^="pf2e-hud"] {
+.pf2e-hud {
     --icon-width: 1.4em;
     --icon-color: #d4d7de;
 
@@ -266,8 +266,7 @@ $panel-gap: 5px;
     }
 }
 
-[id^="pf2e-hud"],
-[class^="pf2e-hud"] {
+.pf2e-hud-colors {
     --color-rarity-uncommon: #cb8470;
     --color-rarity-rare: #5996f7;
     --color-rarity-unique: #d05fff;
@@ -299,10 +298,30 @@ $panel-gap: 5px;
             color: var(--color-rank-4);
         }
     }
+
+    .rarity-uncommon {
+        color: var(--color-rarity-uncommon);
+    }
+
+    .rarity-rare {
+        color: var(--color-rarity-rare);
+    }
+
+    .rarity-unique {
+        color: var(--color-rarity-unique);
+    }
 }
 
-#interface:has(#pf2e-hud-persistent) {
+#interface.has-hud-persistent {
     --panel-gap: #{$panel-gap};
+}
+
+#interface.has-hud-tracker {
+    #fps {
+        --panel-gap: #{$panel-gap};
+
+        margin: 0 18em var(--panel-gap) 0;
+    }
 }
 
 #tooltip,
@@ -378,13 +397,5 @@ aside.locked-tooltip {
     img {
         width: 100%;
         height: 100%;
-    }
-}
-
-#ui-middle:has(#pf2e-hud-tracker) {
-    #fps {
-        --panel-gap: #{$panel-gap};
-
-        margin: 0 18em var(--panel-gap) 0;
     }
 }

@@ -15,6 +15,7 @@ import {
     templateLocalize,
     unsetFlag,
 } from "foundry-pf2e";
+import { createTemporaryStyles } from "foundry-pf2e/src/html";
 import Sortable, { SortableEvent } from "sortablejs";
 import { BaseRenderOptions, BaseSettings, PF2eHudBase } from "./base/base";
 import { HealthData, getHealth, userCanObserveActor } from "./shared/base";
@@ -39,8 +40,35 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
     #renderEffectsHook = createHook("renderEffectsPanel", this.#onRenderEffectsPanel.bind(this));
     #combatTrackerHook = createHook("renderCombatTracker", this.#onRenderCombatTracker.bind(this));
 
+    #temporaryStyles = createTemporaryStyles();
+
+    #combatTrackerHeightObserver = new ResizeObserver((entries) => {
+        const trackerEvent = entries.find((e) => e.target === this.element);
+        if (!trackerEvent) return;
+
+        this.#trackerHeight = {
+            offsetHeight: trackerEvent.contentRect.height,
+            clientHeight: this.combatantsElement?.clientHeight ?? 0,
+            scrollHeight: this.combatantsElement?.scrollHeight ?? 0,
+        };
+
+        this.#temporaryStyles.toggle(
+            "#interface",
+            "hud-tracker-tall",
+            this.#trackerHeight.offsetHeight > window.innerHeight / 2
+        );
+
+        this.#updateEffectsPanel();
+        this.#scrollToCurrent();
+    });
+
     #toggled = false;
     #cancelScroll = false;
+    #trackerHeight = {
+        offsetHeight: 0,
+        clientHeight: 0,
+        scrollHeight: 0,
+    };
     #combatantElement: HTMLElement | null = null;
     #combatantsElement: HTMLElement | null = null;
     #contextMenus: EntryContextOption[] = [];
@@ -123,8 +151,12 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         this.#combatantElement = null;
         this.#combatantsElement = null;
 
+        this.#combatTrackerHeightObserver.disconnect();
+
         const effectsPanel = document.getElementById("effects-panel");
-        if (effectsPanel) effectsPanel.style.removeProperty("max-height");
+        effectsPanel?.style.removeProperty("max-height");
+
+        this.#temporaryStyles.clear();
 
         super._onClose(options);
     }
@@ -305,13 +337,17 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         return await this.renderTemplate("tracker", context);
     }
 
+    _onFirstRender(context: ApplicationRenderContext, options: TrackerRenderOptions): void {
+        this.#combatTrackerHeightObserver.observe(this.element);
+        this.#temporaryStyles.add("#interface", "has-hud-tracker");
+    }
+
     _replaceHTML(result: string, content: HTMLElement, options: TrackerRenderOptions): void {
         content.innerHTML = result;
 
         content.style.setProperty(`--font-size`, `${options.fontSize}px`);
         content.classList.toggle("collapsed", options.collapsed);
         content.classList.toggle("textureScaling", options.textureScaling);
-        content.classList.toggle("tall", content.offsetHeight > window.innerHeight / 2);
 
         this.#combatantsElement = content.querySelector(".combatants")!;
         this.#combatantElement = this.#combatantsElement.querySelector(".combatant.active");
@@ -409,7 +445,7 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         const trackerElement = this.element;
         if (!effectsPanel || !trackerElement) return;
 
-        const offsetHeight = trackerElement.offsetHeight;
+        const offsetHeight = this.#trackerHeight.offsetHeight;
         effectsPanel.style.setProperty("max-height", `calc(100% - ${offsetHeight}px - 2em)`);
     }
 
@@ -423,8 +459,8 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         const activeCombatant = this.combatantElement;
         if (!combatantsList || !activeCombatant) return;
 
-        const clientHeight = combatantsList.clientHeight;
-        const scrollHeight = combatantsList.scrollHeight;
+        const clientHeight = this.#trackerHeight.clientHeight;
+        const scrollHeight = this.#trackerHeight.scrollHeight;
         if (clientHeight === scrollHeight) return;
 
         combatantsList.scrollTop = activeCombatant.offsetTop - clientHeight / 2;

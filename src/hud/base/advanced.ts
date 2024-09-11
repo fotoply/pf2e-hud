@@ -16,6 +16,7 @@ function makeAdvancedHUD<C extends abstract new (...args: any[]) => {}>(construc
 
         abstract get sidebars(): HTMLElement | null;
         abstract get anchor(): AdvancedHudAnchor;
+        abstract get mainElement(): HTMLElement | null;
 
         get partials(): string[] {
             return [
@@ -196,6 +197,7 @@ interface IPF2eHudAdvanced {
     get sidebar(): PF2eHudSidebar | null;
     get anchor(): AdvancedHudAnchor;
     get sidebars(): HTMLElement | null;
+    get mainElement(): HTMLElement | null;
 
     _renderSidebarHTML?(innerElement: HTMLElement, sidebar: SidebarName): Promise<void>;
     _onRenderSidebar?(innerElement: HTMLElement): void;
