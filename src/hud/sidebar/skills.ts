@@ -1,5 +1,6 @@
 import {
     R,
+    createDialogData,
     dataToDatasetString,
     elementDataset,
     getActionIcon,
@@ -543,6 +544,8 @@ const SF2E_VARIANTS = R.pipe(
     )
 );
 
+const actionLabels: Record<string, string> = {};
+
 function prepareStatisticAction(
     statistic: string | undefined,
     rawAction: SharedAction | RawSkillAction
@@ -609,7 +612,6 @@ function prepareStatisticAction(
 }
 
 let skillsCache: PreparedSkill[] | null = null;
-const actionLabels: Record<string, string> = {};
 function finalizeSkills(actor: ActorPF2e): FinalizedSkill[] {
     if (!skillsCache) {
         const isPF2e = getActiveModule("starfinder-field-test-for-pf2e");
@@ -842,6 +844,7 @@ async function rollStatistic(
         dc = variants.dc;
         agile = variants.agile;
         statistic = variants.statistic;
+        event = variants.event ?? event;
     }
 
     const options = {
@@ -912,7 +915,11 @@ async function getStatisticVariants(
     actionId: string,
     { dc, statistic, agile }: { dc?: number; statistic?: string; agile?: boolean }
 ) {
-    return promptDialog<{ statistic: string; agile?: boolean; dc?: number }>(
+    if (actionId === "initiative") {
+        actionLabels["initiative"] ??= game.i18n.localize("PF2E.InitiativeLabel");
+    }
+
+    return promptDialog<StatisticVariantData>(
         {
             title: actionLabels[actionId] ?? localize("dialogs.variants.title"),
             content: "dialogs/variants",
@@ -923,6 +930,15 @@ async function getStatisticVariants(
                 statistic,
                 agile,
                 dc,
+            },
+            callback: async (event, btn, html) => {
+                const data = createDialogData(html) as StatisticVariantData;
+
+                if (event instanceof MouseEvent) {
+                    data.event = event;
+                }
+
+                return data;
             },
         },
         { width: 280 }
@@ -965,6 +981,8 @@ function getStatisticDataFromElement(el: HTMLElement): StatisticData {
     };
 }
 
+type SkillActionEvent = "roll-skill" | "roll-statistic-action" | "follow-the-expert";
+
 interface PF2eHudSidebarSkills {
     get actor(): CreaturePF2e;
 }
@@ -976,7 +994,12 @@ type StatisticData = SkillActionDataset & {
     dc?: number;
 };
 
-type SkillActionEvent = "roll-skill" | "roll-statistic-action" | "follow-the-expert";
+type StatisticVariantData = {
+    statistic: string;
+    agile?: boolean;
+    dc?: number;
+    event?: MouseEvent;
+};
 
 type SkillActionDataset = {
     actionId: string;
@@ -1037,7 +1060,7 @@ type RawSkillAction = {
     actionId: string;
     uuid: string;
     useInstance?: boolean;
-    cost?: ActionCost["value"];
+    cost?: ActionCost["value"] | ActionCost["type"];
     map?: true;
     agile?: true;
     label?: string;
@@ -1089,6 +1112,7 @@ export {
     getStatisticDataFromElement,
     getStatisticDragDataFromElement,
     getStatistics,
+    getStatisticVariants,
     prepareStatisticAction,
     rollStatistic,
 };
