@@ -281,42 +281,62 @@ Hooks.on("renderSettingsConfig", (app: SettingsConfig, $html: JQuery) => {
     }
 });
 
+Hooks.on("drawMeasuredTemplate", (template: MeasuredTemplatePF2e) => {
+    if (!template.isPreview) return;
+
+    addFadeOuts(true);
+
+    HUDS.token.close();
+    HUDS.persistent.closeSidebar();
+});
+
+Hooks.on("destroyMeasuredTemplate", (template: MeasuredTemplatePF2e) => {
+    if (!template.isPreview) return;
+
+    removeFadeOuts(true);
+});
+
+window.addEventListener(
+    "dragstart",
+    () => {
+        addFadeOuts();
+        window.addEventListener("dragend", () => removeFadeOuts(), { once: true, capture: true });
+    },
+    true
+);
+
+function addFadeOuts(persistentOnly?: boolean) {
+    for (const element of getFadingElements(persistentOnly)) {
+        element.classList.add("pf2e-hud-fadeout");
+    }
+}
+
+function removeFadeOuts(persistentOnly?: boolean) {
+    setTimeout(() => {
+        for (const element of getFadingElements(persistentOnly)) {
+            element.classList.remove("pf2e-hud-fadeout");
+        }
+    }, 500);
+}
+
 function refreshSidebar() {
     HUDS.token.sidebar?.render();
     HUDS.persistent.sidebar?.render();
 }
 
-function getFadingElements() {
-    const list = [
-        HUDS.token.mainElement,
-        ...[HUDS.token, HUDS.persistent].map(
-            (x) => x.sidebar && x.sidebar.key !== "extras" && x.sidebar.element
-        ),
-        ...PF2eHudPopup.apps,
-    ];
-    return R.pipe(list, R.filter(R.isTruthy));
+function getFadingElements(persistentOnly: boolean = false) {
+    const list = persistentOnly
+        ? [...PF2eHudPopup.apps, HUDS.tracker]
+        : [
+              HUDS.token.mainElement,
+              ...[HUDS.token, HUDS.persistent].map(
+                  (x) => x.sidebar && x.sidebar.key !== "extras" && x.sidebar.element
+              ),
+              ...PF2eHudPopup.apps,
+              HUDS.tracker,
+          ];
+
+    return R.filter(list, R.isTruthy);
 }
-
-window.addEventListener(
-    "dragstart",
-    () => {
-        for (const element of getFadingElements()) {
-            element.classList.add("pf2e-hud-fadeout");
-        }
-
-        window.addEventListener(
-            "dragend",
-            () => {
-                setTimeout(() => {
-                    for (const element of getFadingElements()) {
-                        element.classList.remove("pf2e-hud-fadeout");
-                    }
-                }, 500);
-            },
-            { once: true, capture: true }
-        );
-    },
-    true
-);
 
 export { HUDS as hud };
