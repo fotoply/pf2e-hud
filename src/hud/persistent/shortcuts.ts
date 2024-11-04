@@ -266,10 +266,10 @@ class PersistentShortcuts extends PersistentPart<
         }
     }
 
-    function onHoverStrike(shortcutElement: HTMLElement, hud: PF2eHudPersistent, leave: boolean) {
+    function onHoverStrike(shortcutElement: HTMLElement, hud: PersistentShortcuts, leave: boolean) {
         if (TacticalGrid === undefined) return;
 
-        const shortcut = getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
+        const shortcut = hud.#getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
 
         const actor = hud.actor!;
 
@@ -277,14 +277,13 @@ class PersistentShortcuts extends PersistentPart<
 
         const token = actor.getActiveTokens()[0];
 
-        if (!shortcut.item) return;
-
         if (token === undefined) return;
 
         if ( leave) {
             TacticalGrid.clearRangeHighlight(token);
         } else {
-            const item = shortcut.item;
+            const item = actor.items.get(shortcut.itemId);
+            if (item === undefined) return;
             TacticalGrid.rangeHighlight(token, { item });
         }
     }
