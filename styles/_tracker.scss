@@ -133,7 +133,7 @@
 
                     &.gm-only {
                         filter: invert(1);
-                        text-shadow: 0 0 2px black;
+                        text-shadow: 0 0 3px black;
                     }
                 }
 
@@ -158,30 +158,27 @@
                 align-items: flex-end;
                 z-index: 1;
 
-                .health {
+                .group {
                     display: flex;
-                    gap: 0.2em;
-                }
+                    gap: 0.5em;
 
-                .sp,
-                .hp,
-                .initiative {
-                    display: flex;
-                    gap: 0.1em;
-                    align-items: center;
-
-                    span {
-                        width: 1.6em;
-                        text-align: end;
-                        color: hsl(var(--hue) 75% 40%);
-                    }
-                }
-
-                .initiative {
-                    a {
+                    .entry {
                         display: flex;
+                        gap: 0.1em;
                         align-items: center;
-                        justify-content: center;
+
+                        span {
+                            text-align: end;
+                            color: hsl(var(--hue) 75% 40%);
+                        }
+                    }
+
+                    .initiative {
+                        a {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        }
                     }
                 }
 
