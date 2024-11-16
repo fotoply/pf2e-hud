@@ -53,6 +53,21 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
         return target.dataset;
     }
 
+    getSpellFromElement(target: HTMLElement) {
+        const spellRow = htmlClosest(target, "[data-item-id]");
+        const { itemId, entryId, slotId } = spellRow?.dataset ?? {};
+        const collection = this.actor.spellcasting.collections.get(entryId, {
+            strict: true,
+        });
+
+        return {
+            slotId,
+            collection,
+            castRank: spellRow?.dataset.castRank,
+            spell: collection.get(itemId, { strict: true }),
+        };
+    }
+
     _activateListeners(html: HTMLElement) {
         const actor = this.actor;
         const isCharacter = actor.isOfType("character");
@@ -91,7 +106,7 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
             "mouseenter",
             (_, button) => {
                 if (button.className.includes("option-toggle")) return;
-                const spell = getSpellFromElement(this.actor, button);
+                const spell = this.getSpellFromElement(button);
                 hoverItem(this.actor.getActiveTokens()[0], spell.spell);
             });
 
@@ -107,7 +122,7 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
 
             switch (action) {
                 case "cast-spell": {
-                    const { spell, castRank, collection, slotId } = getSpellFromElement(actor, el);
+                    const { spell, castRank, collection, slotId } = this.getSpellFromElement(el);
                     const maybeCastRank = Number(castRank) || NaN;
                     if (!Number.isInteger(maybeCastRank) || !maybeCastRank.between(1, 10)) return;
 
@@ -141,7 +156,7 @@ class PF2eHudSidebarSpells extends PF2eHudSidebar {
                 }
 
                 case "toggle-signature": {
-                    const { spell } = getSpellFromElement(actor, el);
+                    const { spell } = this.getSpellFromElement(el);
                     return spell.update({
                         "system.location.signature": !spell.system.location.signature,
                     });
@@ -159,22 +174,6 @@ async function hoverItem(token: Token<TokenDocument<Scene>>, item: SpellPF2e | n
     } else {
         TacticalGrid.rangeHighlight(token, {item});
     }
-}
-
-
-function getSpellFromElement(actor: CreaturePF2e, target: HTMLElement) {
-    const spellRow = htmlClosest(target, "[data-item-id]");
-    const { itemId, entryId, slotId } = spellRow?.dataset ?? {};
-    const collection = actor.spellcasting.collections.get(entryId, {
-        strict: true,
-    });
-
-    return {
-        slotId,
-        collection,
-        castRank: spellRow?.dataset.castRank,
-        spell: collection.get(itemId, { strict: true }),
-    };
 }
 
 type SpellDrawData = {
