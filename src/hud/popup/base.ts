@@ -1,4 +1,12 @@
-import { getSetting } from "foundry-pf2e";
+import {
+    ActorPF2e,
+    ApplicationClosingOptions,
+    ApplicationConfiguration,
+    ApplicationPosition,
+    ApplicationRenderContext,
+    ApplicationRenderOptions,
+    getSetting,
+} from "module-helpers";
 import { addDragoverListener } from "../shared/advanced";
 
 abstract class PF2eHudPopup<TConfig extends PopupConfig = PopupConfig> extends foundry.applications
@@ -11,7 +19,7 @@ abstract class PF2eHudPopup<TConfig extends PopupConfig = PopupConfig> extends f
         return getSetting(`popup.${key}`);
     }
 
-    constructor(config: TConfig, options?: PartialApplicationConfiguration) {
+    constructor(config: TConfig, options?: DeepPartial<ApplicationConfiguration>) {
         super(options);
 
         this.#config = config;
@@ -20,7 +28,7 @@ abstract class PF2eHudPopup<TConfig extends PopupConfig = PopupConfig> extends f
         PF2eHudPopup.apps.add(this);
     }
 
-    static DEFAULT_OPTIONS: PartialApplicationConfiguration = {
+    static DEFAULT_OPTIONS: DeepPartial<ApplicationConfiguration> = {
         id: "pf2e-hud-popup-{id}",
         window: {
             positioned: true,
@@ -62,7 +70,7 @@ abstract class PF2eHudPopup<TConfig extends PopupConfig = PopupConfig> extends f
         const event = this.event;
         const bounds = this.element.getBoundingClientRect();
 
-        options.position ??= {};
+        options.position ??= {} as ApplicationPosition;
         options.position.left = event.clientX - bounds.width / 2;
         options.position.top = event.clientY - bounds.height / 2 - 50;
     }

@@ -1,4 +1,16 @@
-import { R, getAlliance, getFlag, getItemWithSourceId, getSetting, localize } from "foundry-pf2e";
+import {
+    ActorPF2e,
+    HeldShieldData,
+    MovementType,
+    R,
+    ValueAndMax,
+    getAlliance,
+    getFlag,
+    getItemWithSourceId,
+    getSetting,
+    getSkillLabel,
+    localize,
+} from "module-helpers";
 import { IWR_DATA, StatsSpeed, StatsStatistic, getSpeeds, getStatistics } from "./base";
 
 const COVER_UUID = "Compendium.pf2e.other-effects.Item.I9lfZUiCwMiGogVi";
@@ -186,8 +198,22 @@ function getAdvancedStats(actor: ActorPF2e, hud: AdvancedHUD): StatsAdvanced {
         ?.map((speed) => `<i class="${speed.icon}"></i> <span>${speed.total}</span>`)
         .join("");
 
+    const recall = (() => {
+        if (!isNPC) return;
+
+        const skills = actor.identificationDCs.skills.map((skill) => getSkillLabel(skill));
+        const label = game.i18n.localize("PF2E.RecallKnowledge.Label");
+        const tooltip = `${label} (${skills.join(", ")})`;
+
+        return {
+            tooltip,
+            dc: actor.identificationDCs.standard.dc,
+        };
+    })();
+
     const data: StatsAdvanced = {
         isNPC,
+        recall,
         isArmy,
         isHazard,
         isVehicle,
@@ -198,7 +224,6 @@ function getAdvancedStats(actor: ActorPF2e, hud: AdvancedHUD): StatsAdvanced {
         level: actor.level,
         dying: isCharacter ? actor.attributes.dying : undefined,
         wounded: isCharacter ? actor.attributes.wounded : undefined,
-        recall: isNPC ? actor.identificationDCs.standard.dc : undefined,
         heroPoints: isCharacter ? actor.heroPoints : undefined,
         statistics: getStatistics(actor),
         otherSpeeds: otherSpeeds || undefined,
@@ -242,7 +267,7 @@ type StatsAdvanced = {
     isCharacter: boolean;
     isCombatant: boolean;
     alliance?: ThreeStep;
-    recall: number | undefined;
+    recall: { dc: number; tooltip: string } | undefined;
     dying: ValueAndMax | undefined;
     wounded: ValueAndMax | undefined;
     heroPoints: ValueAndMax | undefined;

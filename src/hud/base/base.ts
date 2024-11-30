@@ -1,4 +1,8 @@
 import {
+    ApplicationClosingOptions,
+    ApplicationConfiguration,
+    ApplicationRenderContext,
+    ApplicationRenderOptions,
     getFlag,
     getSetting,
     R,
@@ -7,7 +11,7 @@ import {
     setSetting,
     settingPath,
     templatePath,
-} from "foundry-pf2e";
+} from "module-helpers";
 import { HealthData } from "../shared/base";
 
 const GLOBAL_SETTINGS: ReadonlyArray<keyof GlobalSettings> = [
@@ -22,7 +26,7 @@ abstract class PF2eHudBase<
     TUserSettings extends Record<string, any> = Record<string, any>,
     TRenderOptions extends BaseRenderOptions = BaseRenderOptions
 > extends foundry.applications.api.ApplicationV2<ApplicationConfiguration, TRenderOptions> {
-    static DEFAULT_OPTIONS: PartialApplicationConfiguration = {
+    static DEFAULT_OPTIONS: DeepPartial<ApplicationConfiguration> = {
         window: {
             resizable: false,
             minimizable: false,
@@ -32,7 +36,7 @@ abstract class PF2eHudBase<
     };
 
     abstract get key(): string;
-    abstract get templates(): string[] | ReadonlyArray<string>;
+    abstract get templates(): string[];
     abstract get SETTINGS_ORDER(): (keyof TSettings)[];
 
     get SUB_SETTINGS_ORDER(): (keyof TSettings)[] {
@@ -100,12 +104,15 @@ abstract class PF2eHudBase<
         this._onEnable?.(enabled);
     }, 1);
 
-    async render(options?: boolean | Partial<TRenderOptions>, _options?: Partial<TRenderOptions>) {
+    async render(
+        options?: boolean | DeepPartial<TRenderOptions>,
+        _options?: DeepPartial<TRenderOptions>
+    ) {
         if (!this.enabled) return this;
         return super.render(options, _options);
     }
 
-    async close(options: ApplicationClosingOptions = {}): Promise<this> {
+    async close(options: ApplicationClosingOptions = {}) {
         options.animate = false;
         return super.close(options);
     }
@@ -120,7 +127,7 @@ abstract class PF2eHudBase<
     getSetting<K extends keyof TSettings & string>(key: K): TSettings[K];
     getSetting<K extends keyof GlobalSettings & string>(key: K): GlobalSettings[K];
     getSetting(key: (keyof TSettings | keyof GlobalSettings) & string) {
-        if (GLOBAL_SETTINGS.includes(key)) {
+        if (GLOBAL_SETTINGS.includes(key as keyof GlobalSettings)) {
             return getSetting(key);
         }
 

@@ -1,4 +1,4 @@
-import { MODULE } from "foundry-pf2e";
+import { MeasuredTemplatePF2e, MODULE } from "module-helpers";
 import { rollRecallKnowledge } from "./actions/recall-knowledge";
 import { useResolve } from "./actions/resolve";
 import { PF2eHudPersistent } from "./hud/persistent";
@@ -11,6 +11,8 @@ import { registerModuleKeybinds } from "./keybinds";
 import { onRenderSettingsConfig, registerModuleSettings } from "./settings";
 import { editAvatar } from "./utils/avatar";
 import { getNpcStrikeImage } from "./utils/npc-attacks";
+import { PF2eHudTime } from "./hud/time";
+import { PF2eHudDice } from "./hud/dice";
 
 MODULE.register("pf2e-hud", "PF2e HUD");
 
@@ -20,6 +22,8 @@ const HUDS = {
     persistent: new PF2eHudPersistent(),
     tracker: new PF2eHudTracker(),
     resources: new PF2eHudResources(),
+    time: new PF2eHudTime(),
+    dice: new PF2eHudDice(),
 };
 
 Hooks.once("canvasReady", () => {
@@ -51,11 +55,53 @@ Hooks.once("setup", () => {
     };
 
     // @ts-ignore
-    game.hud = {
-        ...HUDS,
-        actions,
-        utils,
-    };
+    game.hud = Object.defineProperties(
+        {},
+        {
+            actions: {
+                value: actions,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            utils: {
+                value: utils,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            tooltip: {
+                value: HUDS.tooltip,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            token: {
+                value: HUDS.token,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            persistent: {
+                value: HUDS.persistent,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            tracker: {
+                value: HUDS.tracker,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+            resources: {
+                value: HUDS.resources,
+                writable: false,
+                configurable: false,
+                enumerable: false,
+            },
+        }
+    );
 
     for (const hud of Object.values(HUDS)) {
         hud.enable();

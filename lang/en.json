@@ -278,6 +278,16 @@
                 "enabled": {
                     "hint": "Enables the tracking of custom resources in your world."
                 }
+            },
+            "time": {
+                "title": "Time Tracker",
+                "short": {
+                    "name": "Short Date & Time",
+                    "hint": "When enabled, a single line with a shortened version of the date & time will be displayed. You can click on the time to toggle between both modes."
+                }
+            },
+            "dice": {
+                "title": "Roll Panel"
             }
         },
         "hud": {
