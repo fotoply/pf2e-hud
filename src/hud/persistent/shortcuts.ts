@@ -293,7 +293,7 @@ class PersistentShortcuts extends PersistentPart<
     function onHoverStrike(shortcutElement: HTMLElement, hud: PersistentShortcuts, leave: boolean) {
         if (TacticalGrid === undefined) return;
 
-        const shortcut = hud.#getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
+        const shortcut = hud.getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
 
         const actor = hud.actor!;
 
