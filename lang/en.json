@@ -1,5 +1,32 @@
 {
     "pf2e-hud": {
+        "SHARED": {
+            "migration": {
+                "warning": {
+                    "title": "Module Migration",
+                    "start": "Start Migration",
+                    "cancel": "Cancel",
+                    "content": {
+                        "modules": "The following module(s) may need to migrate data:",
+                        "wait": "If the system is migrating its own data, please wait before starting"
+                    }
+                },
+                "summary": {
+                    "title": "Migration Summary",
+                    "content": "The following documents were migrated",
+                    "nothing": "No document needed to be migrated."
+                },
+                "error": {
+                    "actors": "An error occured while migrating data for world actors.",
+                    "token": "An error occured while migrating data for the token actor {uuid}.",
+                    "users": "An error occured while migrating data for users."
+                }
+            },
+            "spellcasting": {
+                "staff": "Staff",
+                "charges": "Charges"
+            }
+        },
         "gmOnly": "GM Only",
         "reload": "Requires  Reload",
         "keybindings": {
@@ -274,10 +301,7 @@
                 }
             },
             "resources": {
-                "title": "Resources Tracker",
-                "enabled": {
-                    "hint": "Enables the tracking of custom resources in your world."
-                }
+                "title": "Resources Tracker"
             },
             "time": {
                 "title": "Time Tracker",
@@ -335,6 +359,8 @@
             "main": {
                 "shortcut": {
                     "dc": "DC {dc}",
+                    "unassigned": "unassigned",
+                    "alwaysEnabled": "Always Enabled",
                     "wrongActor": "You can only create shortcuts from the same persistent actor.",
                     "wrongType": "You cannot create a shortcut of that type.",
                     "wrongOrigin": "Only spells from a HUD sidebar can be turned into shortcuts.",
@@ -398,7 +424,7 @@
                 "min": "Minimum Value",
                 "max": "Maximum Value",
                 "current": "Current Value",
-                "visible": "Visible to players?",
+                "shared": "Visible to others?",
                 "name": {
                     "label": "Resource Name",
                     "default": "New Resource"
@@ -417,6 +443,12 @@
             "step1": "[Click]",
             "step2": "[Shift-Click]",
             "step3": "[Control-Click]"
+        },
+        "time": {
+            "encrypt": {
+                "encrypted": "Data is encrypted for players",
+                "clear": "Data is readable by players"
+            }
         },
         "sidebars": {
             "actions": {
@@ -445,8 +477,6 @@
             },
             "spells": {
                 "title": "Spellcasting",
-                "staff": "Staff",
-                "charges": "Charges",
                 "cast": "Cast the Spell",
                 "draw": "Draw Consumable",
                 "broken": "Broken Spell"

@@ -1,5 +1,11 @@
 {
     "pf2e-hud": {
+        "SHARED": {
+            "spellcasting": {
+                "staff": "Bâton",
+                "charges": "Charges"
+            }
+        },
         "gmOnly": "MJ seulement",
         "reload": "Nécessite un rechargement",
         "keybindings": {
@@ -242,10 +248,7 @@
                 }
             },
             "resources": {
-                "title": "Suivi de resources",
-                "enabled": {
-                    "hint": "Active le suivi de ressources spécifiques à votre monde."
-                }
+                "title": "Suivi de resources"
             }
         },
         "hud": {
@@ -385,8 +388,6 @@
             },
             "spells": {
                 "title": "Lancer de sorts",
-                "staff": "Bâton",
-                "charges": "Charges",
                 "cast": "Lancer le sort",
                 "draw": "Sortir un consommable",
                 "broken": "Sort défectueux",

@@ -1,3 +1,82 @@
+# 1.25.0
+
+-   if you use the `PF2e Dailies` module, make sure to update it to version `3.15.0`
+-   the module now uses a migration manager
+    -   the main GM will be asked to migrate on load
+    -   if the system is migrating data, make sure to wait until it is done before starting
+-   you can now use delta and percentage values in the `Health`, `Stamina` and `Shield` related input fields
+    -   using `+x` or `-x` will add/subtract `x` to the current value
+    -   using `x%` will set the value to be `x` percent of the max value
+    -   using `+x%` or `-x%` will add/subtract `x` percent of the max value to the current value
+    -   NOTE that any decimal number will be rounded down
+    -   NOTE that `Temporary Hit Points` doesn't have a max value and therefore will be update by a percentage of its current value instead
+-   `Persistent Shortcuts`:
+    -   disable non-primary vessel spell shortcuts
+    -   you can now create any kind of roll option toggle shortcut
+        -   the current suboption (if any) will be recorded on shortcut creation
+        -   if a toggle is `alwaysEnabled` then clicking on the shortcut will select the suboption
+        -   if a toggle has a suboption but isn't `alwaysEnabled` then
+            -   it will toggle on and set the suboption if the toggle is off or another suboption is selected
+            -   will toggle off if it is currently on and with the same suboption selected
+    -   you can now drag the elemental blast action cost (`Ⅰ Ⅱ`) to create a special rolloption shortcut
+    -   now directly send-to-chat unusable actions for players (will still open the popup for the GM)
+        -   "unusable" refers to actions that don't have a self-effect or a macro linked to them
+    -   fix wand shortcuts not being expended
+-   `Resources Tracker` rework:
+    -   `Enabled` is now a client setting (still requires reload)
+    -   there is no longer any world resource
+    -   any resource can now be shared with the other users
+        -   only the owner of the resource can update/edit it
+        -   only show shared resources from logged-in users
+-   `Sidebars`:
+    -   hide non-primary vessel spells from the list
+    -   fix drag image not always loading during drag event
+
+# 1.24.3
+
+-   `Dice Panel`:
+    -   fix panel being squished when rendered while being on another directory tab
+
+# 1.24.2
+
+-   make sure `ChatLog` is rendered before trying to inject the `Dice Panel` & `Time Tracker` HUDs
+-   `Dice Panel`:
+    -   slight styling adjustment
+
+# 1.24.1
+
+-   `Skills Sidebar`:
+    -   add `Halfling Ingenuity` & `Eclectic Skill` to the feats allowing you to use skill actions requiring to be tained
+
+# 1.24.0
+
+-   `Dice Panel`:
+    -   add two `Flat Check` buttons for DC 5 & 11
+    -   no longer generate a `[[/r 1dx]]` inline syntax but instead `[[1dx]]`
+        -   this means that inline rolls will be evaluated when the chat message is added
+        -   will however keep the `/r` if it is already present in the inline brackets
+    -   fix parsing of dice number with more than one digit
+-   `Persistent Shortcuts`:
+    -   now display the map modifier (if any) on the skill action shortcuts
+-   `Skills Sidebar`:
+    -   add support for `Chirurgeon`
+        -   `medicine` skill actions will all be displayed as usable even if not trained in it
+    -   fix `Untrained Improviser` mixup
+        -   the module was just not hiding the skill actions that required to be trained if you had `Untrained Improviser`
+        -   the module now gives you the ability to roll any skill action if you have the `Cleaver Improviser` or `Ceremony of Knowledge` feats and no longer care about `Untrained Improviser`
+    -   NOTE that the system `Treat Wounds` action will not work when using `medicine` because it double checks if you are trained in it and does not care for those feats
+-   `Time Tracker`:
+    -   add new `Encrypt` button for the GM
+        -   it only shows up on the expanded version when hovering over the tracker
+        -   makes the date & time unreadable for the players
+        -   stays visible when enabled to indicate if the data is encrypted
+        -   if encrypted and switching to the short version, the date+time will have a gm-only style applied
+
+# 1.23.1
+
+-   `Time Tracker`:
+    -   fix short date year value when not using the `Unthemed (Gregorian Calendar)`
+
 # 1.23.0
 
 -   add new `Dice Panel` HUD:

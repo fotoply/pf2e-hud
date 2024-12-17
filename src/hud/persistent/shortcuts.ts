@@ -39,7 +39,6 @@ import {
     setFlag,
     setFlagProperty,
     SkillSlug,
-    SpellcastingSheetData,
     SpellcastingSheetDataWithCharges,
     SpellCollection,
     SpellPF2e,
@@ -50,12 +49,8 @@ import {
     warn,
 } from "module-helpers";
 import { rollRecallKnowledge } from "../../actions/recall-knowledge";
-import {
-    PersistentContext,
-    PersistentHudActor,
-    PersistentRenderOptions,
-    PF2eHudPersistent,
-} from "../persistent";
+import { BaseActorContext } from "../base/actor";
+import { PersistentContext, PersistentHudActor, PersistentRenderOptions } from "../persistent";
 import { PF2eHudItemPopup } from "../popup/item";
 import {
     ActionBlast,
@@ -74,12 +69,12 @@ import {
     ACTION_VARIANTS,
     getLoreSlug,
     getMapLabel,
+    getMapValue,
     getSkillVariantName,
     rollStatistic,
     SkillVariantDataset,
 } from "../sidebar/skills";
 import { PersistentPart } from "./part";
-import { BaseActorContext } from "../base/actor";
 
 const ROMAN_RANKS = ["", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ"] as const;
 
@@ -808,6 +803,10 @@ class PersistentShortcuts extends PersistentPart<
                       game.pf2e.actions.get(shortcutData.actionId)?.img ??
                       getActionImg(item);
 
+                const mapLabel = shortcutData.map
+                    ? getMapValue(shortcutData.map, shortcutData.agile)
+                    : undefined;
+
                 return {
                     ...shortcutData,
                     isDisabled: false,
@@ -815,6 +814,7 @@ class PersistentShortcuts extends PersistentPart<
                     item,
                     name,
                     img,
+                    mapLabel,
                     cost: this.getActionCost(actionCost),
                 } satisfies SkillShortcut as T;
             }
@@ -885,13 +885,16 @@ class PersistentShortcuts extends PersistentPart<
                 const name = `${spell.name} - ${cached.rankLabel[castRank]}`;
 
                 cached.spellcasting ??= {};
-                cached.spellcasting[entryId] ??= await entry.getSheetData();
-                const entrySheetData = cached.spellcasting[
-                    entryId
-                ] as SpellcastingSheetDataWithCharges;
+                cached.spellcasting[entryId] ??= await entry.getSheetData({ spells: collection });
+                const entrySheetData = cached.spellcasting[entryId];
 
                 cached.dailiesModule ??= getActiveModule("pf2e-dailies");
-                const dailiesModule = cached.dailiesModule as Maybe<PF2eDailiesModule>;
+                const dailiesModule = cached.dailiesModule;
+
+                cached.animistVesselsData ??= actor.isOfType("character")
+                    ? dailiesModule?.api.getAnimistVesselsData(actor)
+                    : undefined;
+                const animistVesselsData = cached.animistVesselsData;
 
                 cached.entryLabel ??= {};
                 cached.entryLabel[entryId] ??= entrySheetData.statistic?.dc.value
@@ -911,6 +914,8 @@ class PersistentShortcuts extends PersistentPart<
                 const isStaff = !!entrySheetData.isStaff;
                 const isBroken = !isCantrip && isCharges && !dailiesModule;
                 const isInnate = entrySheetData.isInnate;
+                const isVessel = !!animistVesselsData && animistVesselsData.entry.id === entryId;
+                const isPrimary = isVessel && animistVesselsData.primary.includes(itemId);
 
                 const canCastRank = (() => {
                     if (!isStaff || !dailiesModule) return false;
@@ -930,7 +935,11 @@ class PersistentShortcuts extends PersistentPart<
                         ? (group.uses as ValueAndMax)
                         : undefined;
 
-                const active = slotId != null ? group?.active[slotId] : undefined;
+                const active = isConsumable
+                    ? group?.active[0]
+                    : slotId != null
+                    ? group?.active[slotId]
+                    : undefined;
 
                 const uses =
                     isCantrip || isConsumable || (isPrepared && !isFlexible)
@@ -957,16 +966,15 @@ class PersistentShortcuts extends PersistentPart<
                     ? "fa-solid fa-scroll"
                     : undefined;
 
-                const expended =
-                    isCantrip || isConsumable
-                        ? false
-                        : isStaff
-                        ? !canCastRank
-                        : uses
-                        ? isCharges
-                            ? uses.value < castRank
-                            : uses.value === 0
-                        : !!active?.expended;
+                const expended = isCantrip
+                    ? false
+                    : isStaff
+                    ? !canCastRank
+                    : uses
+                    ? isCharges
+                        ? uses.value < castRank
+                        : uses.value === 0
+                    : !!active?.expended;
 
                 const notCarried = isConsumable
                     ? spell.parentItem?.carryType !== "held"
@@ -981,16 +989,25 @@ class PersistentShortcuts extends PersistentPart<
                 const annotation =
                     notCarried && parentItem ? getActionAnnotation(parentItem) : undefined;
 
+                const isDisabled = expended || isBroken || (isVessel && !isPrimary);
+
+                const shortcutName = annotation
+                    ? `${getAnnotationTooltip(annotation)} - ${name}`
+                    : name;
+
                 return returnShortcut({
                     ...shortcutData,
-                    isDisabled: expended || isBroken,
-                    isFadedOut: expended || isBroken || notCarried,
+                    isDisabled,
+                    isFadedOut: isDisabled || notCarried,
                     rank: ROMAN_RANKS[castRank],
                     img: spell.img,
                     categoryIcon,
                     collection,
                     item: spell,
-                    name: annotation ? `${getAnnotationTooltip(annotation)} - ${name}` : name,
+                    name:
+                        isVessel && !isPrimary
+                            ? `${shortcutName} (${localize("persistent.main.shortcut.unassigned")})`
+                            : shortcutName,
                     uses,
                     entryLabel,
                     isBroken,
@@ -1137,26 +1154,50 @@ class PersistentShortcuts extends PersistentPart<
             }
 
             case "toggle": {
-                const { domain, option } = shortcutData;
+                const { domain, option, optionSelection, alwaysActive } = shortcutData;
                 const item = actor.items.get(shortcutData.itemId);
                 const toggle = foundry.utils.getProperty(
                     actor,
                     `synthetics.toggles.${domain}.${option}`
-                ) as RollOptionToggle;
+                ) as Maybe<RollOptionToggle>;
                 const disabled = !item || !toggle?.enabled;
-                const checked = !!toggle?.checked;
-                const label = game.i18n.localize(
-                    `PF2E.SETTINGS.EnabledDisabled.${checked ? "Enabled" : "Disabled"}`
-                );
+                const isBlast = domain === "elemental-blast" && option === "action-cost";
+                const selection = isBlast
+                    ? actor.rollOptions["elemental-blast"]?.["action-cost:2"]
+                        ? "2"
+                        : "1"
+                    : optionSelection;
+                const subOption = toggle?.suboptions.find((sub) => sub.value === selection);
+                const selected = !!subOption?.selected;
+                const checked = (!selection || selected) && (alwaysActive || !!toggle?.checked);
+
+                const name = (() => {
+                    if (!toggle) {
+                        return shortcutData.name;
+                    }
+
+                    const enabled = alwaysActive
+                        ? localize("persistent.main.shortcut.alwaysEnabled")
+                        : game.i18n.localize(
+                              `PF2E.SETTINGS.EnabledDisabled.${checked ? "Enabled" : "Disabled"}`
+                          );
+
+                    return `${toggle.label} (${enabled})`;
+                })();
+
+                const subtitle = subOption ? game.i18n.localize(subOption.label) : undefined;
 
                 return returnShortcut({
                     ...shortcutData,
                     isDisabled: disabled,
                     isFadedOut: disabled,
                     checked,
+                    name,
                     item,
+                    subtitle,
+                    isBlast,
                     img: item?.img ?? shortcutData.img,
-                    name: toggle ? `${toggle.label} (${label})` : shortcutData.name,
+                    optionSelection: selection,
                 } satisfies ToggleShortcut as T);
             }
         }
@@ -1192,7 +1233,12 @@ class PersistentShortcuts extends PersistentPart<
 
         switch (dropData.type) {
             case "RollOption": {
-                const { label, domain, option } = dropData as RollOptionData;
+                const { label, domain, option, alwaysActive, optionSelection } =
+                    dropData as RollOptionData & {
+                        optionSelection: string | undefined;
+                        alwaysActive: `${boolean}`;
+                    };
+
                 if (
                     typeof label !== "string" ||
                     !label.length ||
@@ -1213,9 +1259,11 @@ class PersistentShortcuts extends PersistentPart<
                     groupIndex,
                     domain,
                     option,
+                    optionSelection,
+                    alwaysActive: alwaysActive === "true",
                     img: item.img,
                     itemId: item.id,
-                    name: label,
+                    name: optionSelection ? `${label} - ` : label,
                 } satisfies ToggleShortcutData;
 
                 break;
@@ -1514,19 +1562,37 @@ class PersistentShortcuts extends PersistentPart<
             }
 
             case "toggle": {
-                const { domain, itemId, option } = shortcut;
-                return actor.toggleRollOption(domain, option, itemId ?? null);
+                const { domain, itemId, option, optionSelection, alwaysActive, isBlast } = shortcut;
+                const value = alwaysActive
+                    ? true
+                    : optionSelection
+                    ? !actor.rollOptions[domain]?.[`${option}:${optionSelection}`]
+                    : !actor.rollOptions[domain]?.[option];
+
+                return actor.toggleRollOption(
+                    domain,
+                    option,
+                    itemId ?? null,
+                    value,
+                    isBlast ? (optionSelection === "2" ? "1" : "2") : optionSelection
+                );
             }
 
             case "action": {
                 const item = shortcut.item;
                 if (!item) return;
 
-                if (!this.isUsableAction(item)) {
+                const isUsable = this.isUsableAction(item);
+
+                if (!isUsable && game.user.isGM) {
                     return new PF2eHudItemPopup({ actor, item, event }).render(true);
                 }
 
                 if (this.getSetting("confirmShortcut") && !(await confirmUse(item))) return;
+
+                if (!isUsable) {
+                    return item.toMessage(event);
+                }
 
                 if (!shortcut.effectUuid || !isValidStance(item)) {
                     return useAction(event, item);
@@ -1664,12 +1730,13 @@ type ShortcutType = "action" | "attack" | "consumable" | "spell" | "toggle" | "s
 
 type CreateShortcutCache = {
     rankLabel?: Partial<Record<OneToTen, string>>;
-    spellcasting?: Record<string, SpellcastingSheetData>;
-    dailiesModule?: Maybe<PF2eDailiesModule>;
+    spellcasting?: Record<string, SpellcastingSheetDataWithCharges>;
+    dailiesModule?: PF2eDailiesModule;
     entryLabel?: Record<string, string>;
     canCastRank?: Partial<Record<OneToTen, boolean>>;
     canUseStances?: boolean;
     mustDrawConsumable?: boolean;
+    animistVesselsData?: dailies.AnimistVesselsData;
 };
 
 type FillShortcutCache = {
@@ -1704,6 +1771,8 @@ type ToggleShortcutData = ShortcutDataBase<"toggle"> & {
     itemId: string;
     domain: string;
     option: string;
+    optionSelection: string | undefined;
+    alwaysActive: boolean;
     name: string;
     img: string;
 };
@@ -1800,6 +1869,7 @@ type SkillShortcut = BaseShortCut<"skill"> &
     SkillShortcutData & {
         item: AbilityItemPF2e | FeatPF2e | LorePF2e;
         cost: CostValue;
+        mapLabel: number | undefined;
     };
 
 type ActionShortcut = BaseShortCut<"action"> &
@@ -1819,6 +1889,7 @@ type ToggleShortcut = BaseShortCut<"toggle"> &
     ToggleShortcutData & {
         item: ItemPF2e | undefined;
         checked: boolean;
+        isBlast: boolean;
     };
 
 type SkillDropData = Partial<SkillVariantDataset> & {

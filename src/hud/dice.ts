@@ -1,9 +1,16 @@
-import { addListenerAll, ApplicationConfiguration, getDamageRollClass } from "module-helpers";
+import {
+    ActorPF2e,
+    addListenerAll,
+    ApplicationConfiguration,
+    getActor,
+    getDamageRollClass,
+    R,
+} from "module-helpers";
 import { BaseRenderOptions, BaseSettings } from "./base/base";
 import { PF2eHudDirectory } from "./base/directory";
 
-const ROLL_REGEX = /^\/(?:r|roll|publicroll|pr|gmroll|grm|blindroll|broll|br|selfroll|sr) (.+)/i;
-const INLINE_REGEX = /\[\[\/r ([\dd+ -]+)\]\]$/i;
+const ROLL_REGEX = /^\/(?:r|roll|publicroll|pr|gmroll|gm|blindroll|broll|br|selfroll|sr) (.+)/i;
+const INLINE_REGEX = /\[\[((?:\/r )?[\dd+ -]+)\]\]$/i;
 
 const DICE = {
     4: "M235.11 196.24l17.074-29.463v29.463H235.11zM486.95 456H25.05L256 56zm-358.631-54.833l41.212-22.943-6.702-12.075-59.699 33.303 5.458 9.805a11.278 11.278 0 0 1 2.645-.881 11.822 11.822 0 0 1 5.566-.085 12.534 12.534 0 0 1 6.34 4.01 59.3 59.3 0 0 1 5.071 7.353l7.994-4.456zM273.074 196.24h-7.74v-42.734H250.24l-25.14 41.515v11.749h27.072v14.72h13.162v-14.72h7.74v-10.518zm131.619 212.45q6.822-11.93.616-21.735-3.26-5.132-10.675-9.745l-6.484 11.338a22.677 22.677 0 0 1 6.533 5.483q2.873 4.19-.17 9.515a8.453 8.453 0 0 1-5.916 4.552 10.868 10.868 0 0 1-7.463-1.497 14.08 14.08 0 0 1-6.436-8.513 99.728 99.728 0 0 1-2.294-15.167q-1.316-13.089-5.82-18.982a32.144 32.144 0 0 0-10.095-9.418l-23.28 40.705 10.275 5.88 14.828-25.913a15.203 15.203 0 0 1 1.679 4.577q.47 2.415 1.062 8.585l.64 6.57a45.149 45.149 0 0 0 2.717 12.823 21.518 21.518 0 0 0 9.455 10.638q8.598 4.915 17.002 2.33 8.404-2.584 13.814-12.014z",
@@ -47,6 +54,7 @@ class PF2eHudDice extends PF2eHudDirectory<DiceSettings, DiceRenderOptions> {
         return {
             dice,
             dten: dice[3].path,
+            flats: [5, 11].map((dc) => ({ dc, label: this.#flatCheckLabel(dc) })),
         };
     }
 
@@ -65,6 +73,12 @@ class PF2eHudDice extends PF2eHudDirectory<DiceSettings, DiceRenderOptions> {
         return element;
     }
 
+    #flatCheckLabel(dc: number) {
+        const flatLabel = game.i18n.localize("PF2E.FlatCheck");
+        const dcLabel = game.i18n.format("PF2E.InlineAction.Check.DC", { dc });
+        return `${flatLabel} ${dcLabel}`;
+    }
+
     #activateListeners(html: HTMLElement) {
         addListenerAll(html, "[data-action]", (event, el) => {
             const action = el.dataset.action as EventAction;
@@ -76,8 +90,26 @@ class PF2eHudDice extends PF2eHudDirectory<DiceSettings, DiceRenderOptions> {
                     if (event.shiftKey) {
                         addDieToChat(face);
                     } else {
-                        processDie(face, event.ctrlKey);
+                        rollDie(face, event.ctrlKey);
                     }
+
+                    break;
+                }
+
+                case "roll-flat": {
+                    const dc = Number(el.dataset.dc);
+
+                    game.pf2e.Check.roll(
+                        new game.pf2e.StatisticModifier(this.#flatCheckLabel(dc), []),
+                        {
+                            actor: getActor() ?? ({} as ActorPF2e),
+                            type: "flat-check",
+                            dc: { value: dc },
+                            options: new Set(["flat-check"]),
+                            createMessage: true,
+                            skipDialog: true,
+                        }
+                    );
 
                     break;
                 }
@@ -102,35 +134,39 @@ function addDieToChat(face: number) {
     }
 
     if (ROLL_REGEX.test(str)) {
-        return updateChat(processChatRoll(face, str));
+        const dice = processChatRoll(face, str);
+        return updateChat(dice);
     }
 
     const match = str.match(INLINE_REGEX);
-    if (!match) {
-        return updateChat(`${str} [[/r 1d${face}]]`);
+
+    if (R.isNumber(match?.index)) {
+        const index = match.index;
+        const sub = str.substring(index + 2, str.length - 2).trim();
+
+        const dice = processChatRoll(face, sub);
+        updateChat(`${str.substring(0, index)}[[${dice}]]`);
+    } else {
+        updateChat(`${str} [[1d${face}]]`);
     }
-
-    const index = match.index ?? 0;
-    const sub = str.substring(index + 2, str.length - 2).trim();
-
-    updateChat(`${str.substring(0, index)}[[${processChatRoll(face, sub)}]]`);
 }
 
 function processChatRoll(face: number, str: string) {
     const DIE_REGEX = new RegExp(`(?<!- *)(\\d+)d${face}`, "i");
     const match = str.match(DIE_REGEX);
 
-    if (!match) {
+    if (!R.isNumber(match?.index)) {
         return str + ` + 1d${face}`;
     }
 
-    const index = match.index ?? 0;
+    const index = match.index;
     const value = Number(match[1]);
+    const ln = match[1].length;
 
-    return str.substring(0, index) + (value + 1) + str.substring(index + 1);
+    return str.substring(0, index) + (value + 1) + str.substring(index + ln);
 }
 
-async function processDie(face: number, secret: boolean) {
+async function rollDie(face: number, secret: boolean) {
     const RollCls = face === 20 ? Roll : getDamageRollClass();
     const roll = await new RollCls(`1d${face}`).evaluate();
     const options: { rollMode?: RollMode; create?: boolean } = {};
@@ -142,11 +178,12 @@ async function processDie(face: number, secret: boolean) {
     roll.toMessage(undefined, options);
 }
 
-type EventAction = "roll-die";
+type EventAction = "roll-die" | "roll-flat";
 
 type DiceContext = {
     dice: { face: string; label: string; path: string }[];
     dten: string;
+    flats: { dc: number; label: string }[];
 };
 
 type DiceSettings = BaseSettings;
