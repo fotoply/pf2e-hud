@@ -162,6 +162,10 @@ abstract class PF2eHudBase<
         statuses = statuses === undefined ? this.getHealthStatusEntries() : statuses;
         if (!statuses) return;
 
+        if (health.hidden) {
+            return "?";
+        }
+
         let { value, max, ratio } = health.total;
         value = Math.clamp(value, 0, max);
 
