@@ -47,6 +47,13 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
     const hasHiddenFlag = actor.getFlag("pf2e", "hideHealth") !== false;
 
     const calculateRatio = (value: number, max: number) => {
+        if (hasHiddenFlag) {
+            return {
+                ratio: 1,
+                hue: 60,
+            };
+        }
+
         const ratio = value / max;
         return {
             ratio,

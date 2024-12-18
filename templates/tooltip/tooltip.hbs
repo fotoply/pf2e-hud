@@ -81,13 +81,7 @@
 {{/if}}
 
 {{#if status}}
-    {{#if health.hidden}}
-    <div class="status" style="--hue: 60;" data-section="health-status">
-            {{status}}
-        </div>
-    {{else}}
-    <div class="status" style="--hue: {{health.total.hue}};" data-section="health-status">
-        {{status}}
-    </div>
-    {{/if}}
+<div class="status" style="--hue: {{health.total.hue}};" data-section="health-status">
+    {{status}}
+</div>
 {{/if}}
