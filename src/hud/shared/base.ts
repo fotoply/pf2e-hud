@@ -44,7 +44,7 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
     const currentSP = Math.clamp((useStamina && hp.sp?.value) || 0, 0, maxSP);
     const currentTotal = currentHP + currentSP;
     const maxTotal = hp.max + maxSP;
-    const hasHiddenFlag = actor.getFlag("pf2e", "hideHealth") !== false;
+    const hasHiddenFlag = actor.getFlag("pf2e", "hideHealth") === true;
 
     const calculateRatio = (value: number, max: number) => {
         if (hasHiddenFlag) {
