@@ -12,6 +12,7 @@ import {
     addListenerAll,
     elementDataset,
     getAlliance,
+    getMythicOrHeroPoints,
     isValidClickEvent,
     render,
     setFlag,
@@ -245,17 +246,19 @@ function addStatsAdvancedListeners(actor: ActorPF2e, html: HTMLElement) {
             const direction = event.button === 0 ? 1 : -1;
 
             switch (action) {
+                case "mythic":
                 case "hero": {
-                    const { max, value } = (actor as CharacterPF2e).heroPoints;
-                    const newValue = Math.clamp(value + direction, 0, max);
-                    if (newValue !== value) {
-                        actor.update({ "system.resources.heroPoints.value": newValue });
+                    const resource = getMythicOrHeroPoints(actor);
+                    const newValue = Math.clamp(resource.value + direction, 0, resource.max);
+                    if (newValue !== resource.value) {
+                        actor.update({ [`system.resources.${resource.name}.value`]: newValue });
                     }
                     break;
                 }
+
                 case "dying":
                 case "wounded": {
-                    const max = (actor as CharacterPF2e).system.attributes[action].max;
+                    const max = actor.system.attributes[action].max;
                     if (direction === 1) {
                         actor.increaseCondition(action, { max });
                     } else {
@@ -272,6 +275,6 @@ type StatsHeaderActionEvent = "take-cover" | "raise-shield" | "show-notes" | "us
 
 type StatsAdvancedActionEvent = "roll-statistic" | "change-speed";
 
-type StatsAdvancedSliderEvent = "hero" | "wounded" | "dying";
+type StatsAdvancedSliderEvent = "hero" | "wounded" | "dying" | "mythic";
 
 export { addEnterKeyListeners, addStatsAdvancedListeners, addStatsHeaderListeners };

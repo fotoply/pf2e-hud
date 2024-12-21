@@ -1,6 +1,7 @@
 import {
     AbilityItemPF2e,
     ActionCost,
+    ActionItem,
     ActorPF2e,
     addListenerAll,
     arrayIncludes,
@@ -17,6 +18,7 @@ import {
     FeatPF2e,
     getActionAnnotation,
     getActionImg,
+    getActionMacro,
     getActiveModule,
     getFlag,
     getOwner,
@@ -45,22 +47,22 @@ import {
     StatisticRollParameters,
     StrikeData,
     toggleStance,
+    useAction,
     ValueAndMax,
     warn,
 } from "module-helpers";
 import { rollRecallKnowledge } from "../../actions/recall-knowledge";
 import { BaseActorContext } from "../base/actor";
 import { PersistentContext, PersistentHudActor, PersistentRenderOptions } from "../persistent";
-import { PF2eHudItemPopup } from "../popup/item";
 import {
     ActionBlast,
     ActionStrike,
     getActionFrequency,
+    getActionResource,
     getBlastData,
     getStrikeData,
     getStrikeImage,
     getStrikeVariant,
-    useAction,
     variantLabel,
 } from "../sidebar/actions";
 import { getAnnotationTooltip } from "../sidebar/base";
@@ -75,6 +77,7 @@ import {
     SkillVariantDataset,
 } from "../sidebar/skills";
 import { PersistentPart } from "./part";
+import { PF2eHudItemPopup } from "../popup/item";
 
 const ROMAN_RANKS = ["", "Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ"] as const;
 
@@ -191,7 +194,7 @@ class PersistentShortcuts extends PersistentPart<
                 const shortcut: Shortcut | EmptyShortcut = isAttack
                     ? { index: String(index), groupIndex: String(groupIndex), isEmpty: true }
                     : autoFill
-                    ? await this.#fillShortcut(groupIndex, index, cached)
+                    ? await this.#fillShortcut(String(groupIndex), String(index), cached)
                     : await this.#createShortcutFromSet(groupIndex, index, cached, shortcutsSet);
 
                 shortcuts.push(shortcut);
@@ -339,7 +342,7 @@ class PersistentShortcuts extends PersistentPart<
                           groupIndex: String(groupIndex),
                           isEmpty: true,
                       }
-                    : await this.#fillShortcut(groupIndex, index, cached);
+                    : await this.#fillShortcut(String(groupIndex), String(index), cached);
 
                 if (index === 0 && !shortcut.isEmpty && shortcut.type === "attack") {
                     isAttack = true;
@@ -545,11 +548,9 @@ class PersistentShortcuts extends PersistentPart<
         return flag?.map((x) => x || undefined) ?? [];
     }
 
-    isUsableAction(item: FeatPF2e | AbilityItemPF2e) {
+    isUsableAction(item: ActionItem) {
         return (
-            item.system.selfEffect ||
-            item.frequency?.max ||
-            foundry.utils.getProperty(item, "flags.pf2e-toolbelt.actionable.macro")
+            item.system.selfEffect || item.frequency?.max || item.crafting || getActionMacro(item)
         );
     }
 
@@ -572,13 +573,10 @@ class PersistentShortcuts extends PersistentPart<
     }
 
     async #fillShortcut(
-        groupIndex: Maybe<number | string>,
-        index: Maybe<number | string>,
+        groupIndex: string,
+        index: string,
         cached: ShortcutCache
     ): Promise<Shortcut | EmptyShortcut> {
-        index = String(index);
-        groupIndex = String(groupIndex);
-
         const emptyData: EmptyShortcut = {
             index,
             groupIndex,
@@ -822,11 +820,12 @@ class PersistentShortcuts extends PersistentPart<
             case "action": {
                 const item = actor.items.get(shortcutData.itemId);
                 if (item && !item.isOfType("action", "feat")) return throwError();
-
                 const name = item?.name ?? shortcutData.name;
-                const frequency = item ? getActionFrequency(item) : undefined;
+                const resource = item
+                    ? getActionResource(item) ?? getActionFrequency(item)
+                    : undefined;
                 const isStance = !!item && actor.isOfType("character") && isValidStance(item);
-                const disabled = !item || frequency?.value === 0;
+                const disabled = !item || resource?.value === 0;
 
                 const isActive = (() => {
                     const effectUUID = shortcutData.effectUuid;
@@ -845,6 +844,10 @@ class PersistentShortcuts extends PersistentPart<
 
                 const cannotUseStances = isStance && !canUseStances(actor);
 
+                const subtitle = cannotUseStances
+                    ? localize("sidebars.actions.outOfCombat")
+                    : undefined;
+
                 return returnShortcut({
                     ...shortcutData,
                     isDisabled: disabled,
@@ -852,13 +855,11 @@ class PersistentShortcuts extends PersistentPart<
                     item,
                     isActive,
                     img: item ? getActionImg(item, true) : shortcutData.img,
-                    name: frequency ? `${name} - ${frequency.label}` : name,
-                    frequency,
+                    name: resource ? `${name} - ${resource.label}` : name,
+                    resource,
                     hasEffect,
                     cost: this.getActionCost(item?.actionCost),
-                    subtitle: cannotUseStances
-                        ? localize("sidebars.actions.outOfCombat")
-                        : undefined,
+                    subtitle,
                 } satisfies ActionShortcut as T);
             }
 
@@ -1590,15 +1591,11 @@ class PersistentShortcuts extends PersistentPart<
 
                 if (this.getSetting("confirmShortcut") && !(await confirmUse(item))) return;
 
-                if (!isUsable) {
-                    return item.toMessage(event);
+                if (shortcut.effectUuid && isValidStance(item)) {
+                    return toggleStance(actor as CharacterPF2e, shortcut.effectUuid, event.ctrlKey);
                 }
 
-                if (!shortcut.effectUuid || !isValidStance(item)) {
-                    return useAction(event, item);
-                }
-
-                return toggleStance(actor as CharacterPF2e, shortcut.effectUuid, event.ctrlKey);
+                return useAction(item, event);
             }
 
             case "spell": {
@@ -1709,7 +1706,7 @@ class PersistentShortcuts extends PersistentPart<
                     return;
                 }
 
-                return useAction(event, action);
+                return useAction(action, event);
             }
         }
     }
@@ -1878,11 +1875,7 @@ type ActionShortcut = BaseShortCut<"action"> &
         cost: CostValue;
         isActive: boolean | null;
         hasEffect: boolean;
-        frequency: Maybe<{
-            max: number;
-            value: number;
-            label: string;
-        }>;
+        resource: Maybe<ValueAndMax>;
     };
 
 type ToggleShortcut = BaseShortCut<"toggle"> &

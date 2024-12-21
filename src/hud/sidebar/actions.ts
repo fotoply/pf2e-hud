@@ -1,9 +1,9 @@
 import {
     AbilityItemPF2e,
+    ActionItem,
     ActionType,
     ActorPF2e,
     CharacterPF2e,
-    CharacterSheetData,
     CharacterStrike,
     CheckRoll,
     DamageRoll,
@@ -16,17 +16,17 @@ import {
     R,
     StrikeData,
     TraitToggleViewData,
+    ValueAndMax,
     WeaponPF2e,
     actorItems,
     addListenerAll,
     canUseStances,
-    createSelfEffectMessage,
     elementDataset,
-    eventToRollMode,
     getActionGlyph,
     getActionIcon,
     getActionImg,
     getActiveModule,
+    getMythicOrHeroPoints,
     getStances,
     htmlClosest,
     htmlQuery,
@@ -35,6 +35,7 @@ import {
     objectHasKey,
     toggleStance,
     tupleHasValue,
+    useAction,
 } from "module-helpers";
 import { getNpcStrikeImage } from "../../utils/npc-attacks";
 import { PF2eHudTextPopup } from "../popup/text";
@@ -75,7 +76,7 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
             const api = toolbelt.api.heroActions;
             const actions = api.getHeroActions(actor);
             const usesCount = api.usesCountVariant();
-            const heroPoints = actor.heroPoints.value;
+            const heroPoints = getMythicOrHeroPoints(actor).value;
             const diff = heroPoints - actions.length;
             const mustDiscard = !usesCount && diff < 0;
             const mustDraw = !usesCount && diff > 0;
@@ -142,18 +143,23 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
                 };
 
                 const frequency = getActionFrequency(ability);
+                const resource = getActionResource(ability);
 
                 const usage = await (async () => {
                     if (isExploration) return;
                     if (
                         !frequency &&
                         !ability.system.selfEffect &&
+                        !ability.crafting &&
                         (!actionableEnabled ||
                             !(await toolbelt!.api.actionable.getActionMacro(ability)))
                     )
                         return;
 
-                    const disabled = frequency?.value === 0;
+                    const disabled = ability.crafting
+                        ? resource?.value === 0
+                        : frequency?.value === 0;
+
                     const label = (() => {
                         if (disabled) {
                             return MODULE.path("sidebars.actions.reset");
@@ -174,6 +180,7 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
                 sections[type].actions.push({
                     id,
                     usage,
+                    resource,
                     frequency,
                     isExploration,
                     name: ability.name,
@@ -502,7 +509,7 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
 
                 case "use-action": {
                     const item = await this.getItemFromElement<ActionItem>(button);
-                    return item?.isOfType("feat", "action") && useAction(event, item);
+                    return item?.isOfType("feat", "action") && useAction(item, event);
                 }
 
                 case "reset-action": {
@@ -634,6 +641,15 @@ async function getBlastData(
     return elementTrait ? blasts[0] : blasts;
 }
 
+function isAlchemicalStrike(strike: StrikeData): strike is WeaponStrike {
+    return (
+        strike.item.isOfType("weapon") &&
+        strike.item.isAlchemical &&
+        strike.item.traits.has("bomb") &&
+        strike.item.isTemporary
+    );
+}
+
 async function getStrikeData(
     actor: ActorPF2e,
     options: { id: string; slug: string }
@@ -650,13 +666,47 @@ async function getStrikeData(
         if (!options) return actorStrikes;
 
         const exactMatch = actorStrikes.find(
-            (s) => s.item.id === options.id && s.slug === options.slug
+            (strike) => strike.item.id === options.id && strike.slug === options.slug
         );
-        if (exactMatch) return [exactMatch];
 
+        const otherAlchemicalStrike = (strike: WeaponStrike) => {
+            return actorStrikes.find((other) => {
+                return (
+                    other !== exactMatch &&
+                    other.slug === options.slug &&
+                    isAlchemicalStrike(other) &&
+                    other.item.quantity > 0
+                );
+            });
+        };
+
+        if (exactMatch) {
+            if (!isAlchemicalStrike(exactMatch) || exactMatch.item.quantity) {
+                return [exactMatch];
+            }
+
+            // we look for another alchemical strike with the same slug
+            const other = otherAlchemicalStrike(exactMatch);
+
+            if (other) return [other];
+            else return [exactMatch];
+        }
+
+        // we look for another strike with the same slug
         const match = actorStrikes.find((s) => s.slug === options.slug);
         if (!match) return [];
 
+        if (isAlchemicalStrike(match)) {
+            if (!match.item.quantity) {
+                // again we look for another alchemical strike with some quantity
+                const other = otherAlchemicalStrike(match);
+                if (other) return [other];
+            }
+
+            return [match];
+        }
+
+        // if the embedded item is different from the strike item then it is a virtual strike
         const realItem = actor.items.get(match.item.id);
         return realItem && realItem.type !== match.item.type ? [match] : [];
     })();
@@ -684,6 +734,7 @@ async function getStrikeData(
                 visible: !isCharacter || (strike as CharacterStrike).visible,
                 description,
                 altUsages,
+                isAlchemical: isAlchemicalStrike(strike),
             };
         })
     );
@@ -751,8 +802,8 @@ function getStrikeVariant<T extends StrikeData>(
     return strikeVariant?.ready || !readyOnly ? (strikeVariant as T) : null;
 }
 
-function getActionFrequency(action: FeatPF2e | AbilityItemPF2e) {
-    const frequency = action.frequency;
+function getActionFrequency(item: FeatPF2e | AbilityItemPF2e) {
+    const frequency = item.frequency;
     if (!frequency?.max) return;
 
     const perLabel = game.i18n.localize(CONFIG.PF2E.frequencies[frequency.per]);
@@ -764,30 +815,19 @@ function getActionFrequency(action: FeatPF2e | AbilityItemPF2e) {
     };
 }
 
-async function useAction(event: Event, item: ActionItem) {
-    const frequency = item.frequency;
-    if (frequency?.max && frequency.value) {
-        item.update({ "system.frequency.value": frequency.value - 1 });
-    }
+function getActionResource(item: ActionItem) {
+    if (item.crafting) {
+        const resource = item.actor.getResource(item.crafting.resource);
+        if (!resource?.max) return;
 
-    if (item.system.selfEffect) {
-        createSelfEffectMessage(item, eventToRollMode(event));
-        return;
-    }
-
-    const toolbelt = getActiveModule("pf2e-toolbelt");
-    const macro = toolbelt?.getSetting("actionable.enabled")
-        ? await toolbelt.api.actionable.getActionMacro(item)
-        : undefined;
-
-    if (macro) {
-        macro.execute({ actor: item.actor, item });
-    } else {
-        item.toMessage(event);
+        return {
+            max: resource.max,
+            value: resource.value,
+            slug: resource.slug,
+            label: resource.label,
+        };
     }
 }
-
-type ActionItem = FeatPF2e<ActorPF2e> | AbilityItemPF2e<ActorPF2e>;
 
 type RawStrikeData<T extends StrikeData = StrikeData> = Omit<
     T,
@@ -810,6 +850,7 @@ type ActionStrike<T extends StrikeData = StrikeData> = Omit<ActionStrikeUsage<T>
     quantity?: number;
     description: string;
     altUsages?: Omit<RawStrikeData<StrikeData>, "altUsages">[];
+    isAlchemical: boolean;
 };
 
 type ActionBlast = ElementalBlastSheetConfig & {
@@ -854,14 +895,9 @@ type ActionData = {
     isActive: boolean;
     toggles: TraitToggleViewData[];
     isExploration: boolean;
-    usage: Maybe<{
-        disabled: boolean;
-        label: string;
-    }>;
-    frequency: Maybe<{
-        value: number;
-        label: string;
-    }>;
+    usage: Maybe<{ disabled: boolean; label: string }>;
+    resource: Maybe<ValueAndMax & { label: string; slug: string }>;
+    frequency: Maybe<ValueAndMax & { label: string }>;
 };
 
 type ActionsContext = SidebarContext & {
@@ -908,14 +944,16 @@ type ActionsContext = SidebarContext & {
     ) => string;
 };
 
+type WeaponStrike = StrikeData & { item: WeaponPF2e<ActorPF2e> };
+
 export {
     PF2eHudSidebarActions,
     getActionFrequency,
+    getActionResource,
     getBlastData,
     getStrikeData,
     getStrikeImage,
     getStrikeVariant,
-    useAction,
     variantLabel,
 };
 export type { ActionBlast, ActionStrike };
