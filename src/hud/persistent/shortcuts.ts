@@ -291,7 +291,7 @@ class PersistentShortcuts extends PersistentPart<
     function onHoverStrike(shortcutElement: HTMLElement, hud: PersistentShortcuts, leave: boolean) {
         if (TacticalGrid === undefined) return;
 
-        const shortcut = hud.getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
+        const shortcut = hud.getShortcutFromElement<Shortcut>(shortcutElement);
 
         const actor = hud.actor!;
 
@@ -304,7 +304,12 @@ class PersistentShortcuts extends PersistentPart<
         if ( leave) {
             TacticalGrid.clearRangeHighlight(token);
         } else {
-            const item = actor.items.get(shortcut.itemId);
+            let item: ItemPF2e | undefined;
+            if (shortcut.type === "attack") {
+                item = shortcut.strike?.item;
+            } else {
+                item = actor.items.get(shortcut.itemId);
+            }
             if (item === undefined) return;
             TacticalGrid.rangeHighlight(token, { item });
         }
