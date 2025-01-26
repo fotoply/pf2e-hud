@@ -34,15 +34,16 @@ const STATISTICS = [
 
 function getHealth(actor: ActorPF2e): HealthData | undefined {
     const hp = actor.attributes.hp as CharacterAttributes["hp"] | undefined;
-    if (!hp?.max) return;
+    if (!hp || hp.max <= 0) return;
 
     const isCharacter = actor.isOfType("character");
     const useStamina = isCharacter && game.pf2e.settings.variants.stamina;
     const currentHP = Math.clamp(hp.value, 0, hp.max);
     const maxSP = (useStamina && hp.sp?.max) || 0;
     const currentSP = Math.clamp((useStamina && hp.sp?.value) || 0, 0, maxSP);
-    const currentTotal = currentHP + currentSP;
     const maxTotal = hp.max + maxSP;
+    const currentTotal = currentHP + currentSP + hp.temp;
+    const currentTemp = currentHP + hp.temp;
     const fixedStatusEntry = actor.getFlag("pf2e", "statusEntry");
     const fixedStatusHue = actor.getFlag("pf2e", "statusHue") ?? undefined;
 
@@ -62,7 +63,8 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
             }
         }
 
-        const ratio = value / max;
+        // we need to cap it at 130% to avoid color weirdness
+        const ratio = Math.min(value / max, 1);
         return {
             ratio,
             hue: ratio * ratio * 122 + 3,
@@ -86,6 +88,10 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
             ...calculateRatio(currentTotal, maxTotal),
         },
         fixedEntry: fixedStatusEntry,
+        totalTemp: {
+            value: currentTemp,
+            ...calculateRatio(currentTemp, hp.max),
+        },
     };
 }
 
@@ -196,6 +202,11 @@ type HealthData = {
         hue: number;
         value: number;
         max: number;
+    };
+    totalTemp: {
+        ratio: number;
+        hue: number;
+        value: number;
     };
     ratio: number;
     hue: number;

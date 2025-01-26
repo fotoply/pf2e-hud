@@ -1,3 +1,39 @@
+# 1.28.3
+
+-   `Combat Tracker`:
+    -   fix issue with tracker calling `Next Turn` when dragging a combatant
+
+# 1.28.2
+
+-   `Health Status`:
+    -   fix wrong icon being used in import dialog
+    -   fix issue with import dialog error message
+-   fix recall-knowledge action not skipping manual input dice
+
+# 1.28.1
+
+-   reworked the styling of the recall-knowledge message to be more lean
+-   add new localization keys for the recall-knowledge message to allow better customization
+
+# 1.28.0
+
+-   add an extra flavor text for consumables `use` to make it more obvious
+-   `Combat Tracker`:
+    -   the HP value displayed now includes the temp HP
+-   rework of `Health Status`:
+    -   the feature now has a dedicated menu to setup the different entries
+    -   a setting migration will be done to recover the values from the old feature
+    -   the overall value used to pick the entry and its color now uses the temp HP as well
+        -   this is true for both the `Combat Tracker` & `Token Tooltip`
+    -   fix health status being shown for actors with negative max HP
+
+# 1.27.0
+
+-   `Combat tracker`:
+    -   now also move to next turn when a delayed combatant returns to initiative (making it the current combatant)
+-   `Persistent HUD`:
+    -   add a new button to lock the shortcuts
+
 # 1.26.3
 
 -   `Persistent Shortcuts`:

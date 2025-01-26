@@ -17,6 +17,7 @@ import {
     elementDataset,
     getDispositionColor,
     getFlag,
+    getSetting,
     hasRolledInitiative,
     htmlClosest,
     htmlQueryAll,
@@ -30,8 +31,9 @@ import {
     unsetFlag,
 } from "module-helpers";
 import Sortable, { SortableEvent } from "sortablejs";
+import { getHealthStatus } from "../utils/health-status";
 import { BaseRenderOptions, BaseSettings, PF2eHudBase } from "./base/base";
-import { HealthData, getHealth, userCanObserveActor } from "./shared/base";
+import { getHealth, userCanObserveActor } from "./shared/base";
 import { getStatisticVariants } from "./sidebar/skills";
 
 // Hooks.on("getSceneControlButtons", (controls) => {
@@ -221,7 +223,7 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         let canRoll = false;
         let canRollNPCs = false;
 
-        const statuses = this.getHealthStatusEntries();
+        const status = getSetting("healthStatusEnabled") ? getHealthStatus() : undefined;
         const hideNameLabel = game.i18n.localize("PF2E.Encounter.HideName");
         const revealNameLabel = game.i18n.localize("PF2E.Encounter.RevealName");
 
@@ -268,23 +270,22 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
             if (!combatant.visible) css.push("not-visible");
             if (!isGM && canRollThis) css.push("can-roll");
 
-            const health = (() => {
-                if (!actor || (!canObserve && !statuses)) return;
+            const health: TrackerHealth | undefined = (() => {
+                if (!actor || (!canObserve && !status)) return;
 
                 const health = getHealth(actor);
                 if (!health) return;
 
-                const trackerHealth = health as TrackerHealth;
-
-                trackerHealth.tooltip = canObserve
-                    ? game.i18n.localize("PF2E.HitPointsHeader")
-                    : this.getSelectedHealthStatusEntry(health, statuses)!;
-
-                if (!canObserve) {
-                    trackerHealth.value = trackerHealth.sp.value = "???";
-                }
-
-                return trackerHealth;
+                return {
+                    hue: health.totalTemp.hue,
+                    value: canObserve ? health.totalTemp.value : "???",
+                    sp: health.useStamina
+                        ? { hue: health.sp.hue, value: canObserve ? health.sp.value : "???" }
+                        : undefined,
+                    tooltip: canObserve
+                        ? game.i18n.localize("PF2E.HitPointsHeader")
+                        : this.getSelectedHealthStatusEntry(health, status),
+                };
             })();
 
             const turn: TrackerTurn = {
@@ -348,6 +349,7 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
         }
 
         const combatScene = combat?.scene;
+        const deathImg = game.settings.get("pf2e", "deathIcon");
 
         const data: TrackerContext = {
             ...parentData,
@@ -356,6 +358,7 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
             turns,
             metrics,
             hasActive,
+            deathImg: !deathImg || deathImg === "icons/svg/skull.svg" ? undefined : deathImg,
             hasStarted: combat.started,
             canRoll,
             canRollNPCs,
@@ -437,7 +440,8 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
 
         return this.#newInitiativeOrder(
             newOrder.filter((c): c is RolledCombatant<EncounterPF2e> => hasRolledInitiative(c)),
-            combatant
+            combatant,
+            true
         );
     }
 
@@ -596,22 +600,25 @@ class PF2eHudTracker extends PF2eHudBase<TrackerSettings, any, TrackerRenderOpti
 
     async #newInitiativeOrder(
         newOrder: RolledCombatant<EncounterPF2e>[],
-        combatant: RolledCombatant<EncounterPF2e>
+        combatant: RolledCombatant<EncounterPF2e>,
+        nextTurn?: boolean
     ) {
         const tracker = this.tracker;
         const encounter = tracker.viewed;
         if (!encounter) return;
 
-        const oldOrder = encounter.turns.filter((combatant) => combatant.initiative !== null);
-        const allOrdersChecks = newOrder.every(
-            (combatant) => newOrder.indexOf(combatant) === oldOrder.indexOf(combatant)
-        );
+        const oldOrder = encounter.turns.filter((c) => c.initiative !== null);
+        const allOrdersChecks = newOrder.every((c) => newOrder.indexOf(c) === oldOrder.indexOf(c));
         if (allOrdersChecks) return;
 
         this.#cancelScroll = true;
 
         setInitiativeFromDrop(encounter, newOrder, combatant);
         await saveNewOrder(encounter, newOrder);
+
+        if (nextTurn) {
+            await encounter.nextTurn();
+        }
     }
 
     #onSortableEnd(event: SortableEvent) {
@@ -796,10 +803,11 @@ type TrackerTexture = {
     mask?: string;
 };
 
-type TrackerHealth = Omit<HealthData, "value" | "sp"> & {
+type TrackerHealth = {
     value: number | "???";
+    hue: number;
     tooltip: string;
-    sp: Omit<HealthData["sp"], "value"> & { value: number | "???" };
+    sp: { value: number | "???"; hue: number } | undefined;
 };
 
 type TrackerTurn = {
@@ -833,10 +841,11 @@ type TrackerContext = {
     hasStarted: boolean;
     canRoll: boolean;
     canRollNPCs: boolean;
-    metrics?: {
+    metrics: Maybe<{
         tooltip: string;
         threat: string;
-    };
+    }>;
+    deathImg: string | undefined;
     expand: {
         tooltip: string;
         collapsed: boolean;

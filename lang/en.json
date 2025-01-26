@@ -52,10 +52,12 @@
             }
         },
         "settings": {
-            "healthStatus": {
-                "name": "Health Status Entries",
-                "hint": "Comma separated strings representing the different divisions of a creature's health state from worst to best. Leave empty to disable.",
-                "default": "Dead, At Death's Door, Not Feeling Good, Seen Better Days, Barely Hurt, Perfectly Fine"
+            "menus": {
+                "healthStatusMenu": {
+                    "name": "Health Status",
+                    "label": "Config Health Status",
+                    "hint": "Set up Health Status divisions to display in the HUDs."
+                }
             },
             "partyAsObserved": {
                 "name": "Party Alliance as Observed",
@@ -367,6 +369,9 @@
                     "wrongActor": "You can only create shortcuts from the same persistent actor.",
                     "wrongType": "You cannot create a shortcut of that type.",
                     "wrongOrigin": "Only spells from a HUD sidebar can be turned into shortcuts.",
+                    "lock": "Lock Shortcuts",
+                    "unlock": "Unlock Shortcuts",
+                    "locked": "Shortcuts are locked.",
                     "confirm": {
                         "title": "Use - {name}",
                         "message": "Are you sure you want to use <strong>{name}</strong>?"
@@ -519,7 +524,10 @@
                 "sixth": "6th",
                 "dc": "DC",
                 "unspecific": "Unspecific",
-                "specific": "Specific"
+                "specific": "Specific",
+                "skill": "Skill",
+                "lore": "Lore Skill",
+                "proficiency": "Proficiency"
             },
             "drive": {
                 "drive1": "Drive <span class=\"action-glyph\">1</span>",
@@ -538,6 +546,25 @@
                 "cancel": "Cancel",
                 "contain": "Contain",
                 "reset": "Reset"
+            },
+            "healthStatus": {
+                "title": "Health Status",
+                "enabled": "Enabled",
+                "add": "Add Marker",
+                "delete": "Delete Marker",
+                "save": "Save",
+                "cancel": "Cancel",
+                "import": {
+                    "label": "Import Health Status",
+                    "yes": "Import",
+                    "no": "Cancel",
+                    "error": "The data provided is invalid."
+                },
+                "export": {
+                    "label": "Export Health Status",
+                    "confirm": "Health Status has been copied to clipboard."
+                },
+                "default": "Dead, At Death's Door, Not Feeling Good, Seen Better Days, Barely Hurt, Perfectly Fine"
             }
         },
         "dialogs": {
