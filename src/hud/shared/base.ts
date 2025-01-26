@@ -43,14 +43,23 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
     const currentSP = Math.clamp((useStamina && hp.sp?.value) || 0, 0, maxSP);
     const currentTotal = currentHP + currentSP;
     const maxTotal = hp.max + maxSP;
-    const hasHiddenFlag = actor.getFlag("pf2e", "hideHealth") === true;
+    const fixedStatusEntry = actor.getFlag("pf2e", "statusEntry");
+    const fixedStatusHue = actor.getFlag("pf2e", "statusHue") ?? undefined;
 
     const calculateRatio = (value: number, max: number) => {
-        if (hasHiddenFlag) {
+        if (fixedStatusHue) {
+            // parse hue from string
             return {
                 ratio: 1,
-                hue: 60,
+                hue: parseInt(fixedStatusHue),
             };
+        } else {
+            if (fixedStatusEntry) {
+                return {
+                    ratio: 1,
+                    hue: 60,
+                };
+            }
         }
 
         const ratio = value / max;
@@ -76,7 +85,7 @@ function getHealth(actor: ActorPF2e): HealthData | undefined {
             max: maxTotal,
             ...calculateRatio(currentTotal, maxTotal),
         },
-        hidden: hasHiddenFlag,
+        fixedEntry: fixedStatusEntry,
     };
 }
 
@@ -192,7 +201,7 @@ type HealthData = {
     hue: number;
     value: number;
     max: number;
-    hidden: boolean;
+    fixedEntry: string | undefined;
 };
 
 export { IWR_DATA, getHealth, getSpeeds, getStatistics, getStatsHeader, userCanObserveActor };
