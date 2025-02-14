@@ -1,3 +1,22 @@
+# 1.31.0
+
+-   `Health Status`:
+    -   fix a possible mixup with `1.30.0` migration
+        -   the module may have to migrate your existing setting to completely fix it
+    -   fix import not working with `1.30.0` data changes
+
+# 1.30.0
+
+-   `Health Status`:
+    -   change the internal value of the first entry (not the dead one) to be `1%` instead of `0%`
+        -   the module will have to migrate your existing setting to adopt that new value
+        -   if you had a custom entry at `1%` prior to the migration, it will be deleted
+
+# 1.29.1
+
+-   `Health Status`:
+    -   fix the feature not actually using the provided percentage values
+
 # 1.29.0
 
 -   `Persistent HUD`:

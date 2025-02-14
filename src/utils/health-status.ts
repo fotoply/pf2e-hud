@@ -186,7 +186,7 @@ class HealthStatusMenu extends foundry.applications.api.ApplicationV2 {
                         R.isString(entry.label) &&
                         R.isNumber(entry.marker)
                 ) ||
-                !status.entries.find((entry) => entry.marker === 0)
+                !status.entries.some((entry) => entry.marker === 1)
             ) {
                 throw new Error();
             }
@@ -217,7 +217,7 @@ function getDefaultHealthStatus(statuses?: string[]): HealthStatus {
         R.map((i): HealthStatusEntry => {
             return {
                 label: all[i],
-                marker: Math.floor((i - 1) * segment),
+                marker: Math.max(Math.floor((i - 1) * segment), 1),
             };
         })
     );
