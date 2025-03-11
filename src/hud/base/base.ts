@@ -43,20 +43,32 @@ abstract class PF2eHudBase<
         return [];
     }
 
+    get requiresReload(): boolean {
+        return false;
+    }
+
+    get hasFontSize(): boolean {
+        return true;
+    }
+
     getSettings(): SettingOptions[] {
-        return [
+        const settings: SettingOptions[] = [
             {
                 key: "enabled",
                 type: Boolean,
                 default: true,
                 scope: "client",
                 name: settingPath("shared.enabled.name"),
-                hint: settingPath("shared.enabled.hint"),
+                hint: this.enabledHint,
+                requiresReload: this.requiresReload,
                 onChange: () => {
                     this.enable();
                 },
             },
-            {
+        ];
+
+        if (this.hasFontSize) {
+            settings.push({
                 key: "fontSize",
                 type: Number,
                 range: {
@@ -71,8 +83,14 @@ abstract class PF2eHudBase<
                 onChange: () => {
                     this.render();
                 },
-            },
-        ];
+            });
+        }
+
+        return settings;
+    }
+
+    get enabledHint(): string {
+        return settingPath("shared.enabled.hint");
     }
 
     get enabled(): boolean {
@@ -83,7 +101,7 @@ abstract class PF2eHudBase<
 
     _configureRenderOptions(options: TRenderOptions) {
         super._configureRenderOptions(options);
-        options.fontSize = this.getSetting("fontSize");
+        options.fontSize = this.hasFontSize ? this.getSetting("fontSize") : 14;
     }
 
     async _preFirstRender(
