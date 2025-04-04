@@ -1,7 +1,6 @@
 import {
     AbilityItemPF2e,
     ActionCost,
-    ActionItem,
     ActorPF2e,
     addListenerAll,
     arrayIncludes,
@@ -18,7 +17,6 @@ import {
     FeatPF2e,
     getActionAnnotation,
     getActionImg,
-    getActionMacro,
     getActiveModule,
     getFlag,
     getOwner,
@@ -57,6 +55,7 @@ import { PersistentContext, PersistentHudActor, PersistentRenderOptions } from "
 import {
     ActionBlast,
     ActionStrike,
+    ELEMENTAL_BLAST_IMG,
     getActionFrequency,
     getActionResource,
     getBlastData,
@@ -232,13 +231,13 @@ class PersistentShortcuts extends PersistentPart<
         );
 
         for (const shortcutElement of shortcutElements) {
-            const classList = [...shortcutElement.classList];
+            const classList = [...shortcutElement.classList] as ShortcutType[];
 
             shortcutElement.addEventListener("drop", (event) => {
                 this.#onShortcutDrop(event, shortcutElement);
             });
 
-        shortcutElement.addEventListener("mouseleave", () => {
+        if (arrayIncludes(["disabled", "empty"], classList)) continue;shortcutElement.addEventListener("mouseleave", () => {
             shortcutElement.classList.remove("show-damage");
             shortcutElement.classList.toggle(
                 "use-variant",
@@ -252,27 +251,15 @@ class PersistentShortcuts extends PersistentPart<
             onHoverStrike(shortcutElement, this, false);
         });
 
-            shortcutElement.addEventListener("contextmenu", async () => {
-                if (this.getSetting("lockShortcuts")) {
-                    warn("persistent.main.shortcut.locked");
-                    return;
-                }
-
-                const { groupIndex, index } = elementDataset(shortcutElement);
-
-                if (this.#isVirtual) {
-                    if (this.#shortcutData[groupIndex]?.[index]) {
-                        delete this.#shortcutData[groupIndex][index];
-                    }
-                    await this.#overrideShortcutData();
+            shortcutElement.addEventListener("contextmenu", async (event) => {
+                if (event.shiftKey) {
+                    this.#removeShortcut(shortcutElement);
                 } else {
-                    if (this.worldActor) {
-                        await this.deleteShortcuts(groupIndex, index);
-                    }
+                    this.#onShortcutContext(event, shortcutElement);
                 }
             });
 
-            if (!arrayIncludes(["empty", "disabled", "attack"], classList)) {
+            if (!classList.includes("attack")) {
                 shortcutElement.addEventListener("click", async (event) => {
                     this.#onShortcutClick(event, shortcutElement);
                 });
@@ -559,12 +546,6 @@ class PersistentShortcuts extends PersistentPart<
         return flag?.map((x) => x || undefined) ?? [];
     }
 
-    isUsableAction(item: ActionItem) {
-        return (
-            item.system.selfEffect || item.frequency?.max || item.crafting || getActionMacro(item)
-        );
-    }
-
     #createStrikeShortcutData(
         groupIndex: string,
         index: string,
@@ -581,6 +562,21 @@ class PersistentShortcuts extends PersistentPart<
             img: strike.item.img,
             name: `${game.i18n.localize("PF2E.WeaponStrikeLabel")}: ${strike.label}`,
         };
+    }
+
+    async #removeShortcut(el: HTMLElement) {
+        const { groupIndex, index } = elementDataset(el);
+
+        if (this.#isVirtual) {
+            if (this.#shortcutData[groupIndex]?.[index]) {
+                delete this.#shortcutData[groupIndex][index];
+            }
+            await this.#overrideShortcutData();
+        } else {
+            if (this.worldActor) {
+                await this.deleteShortcuts(groupIndex, index);
+            }
+        }
     }
 
     async #fillShortcut(
@@ -1156,6 +1152,7 @@ class PersistentShortcuts extends PersistentPart<
 
                     return returnShortcut({
                         ...shortcutData,
+                        isBlast: false,
                         isDisabled: disabled,
                         isFadedOut: disabled || !strike.ready || strike.quantity === 0,
                         strike,
@@ -1211,7 +1208,7 @@ class PersistentShortcuts extends PersistentPart<
                     item,
                     subtitle,
                     isBlast,
-                    img: item?.img ?? shortcutData.img,
+                    img: isBlast ? ELEMENTAL_BLAST_IMG : item?.img ?? shortcutData.img,
                     optionSelection: selection,
                 } satisfies ToggleShortcut as T);
             }
@@ -1520,31 +1517,45 @@ class PersistentShortcuts extends PersistentPart<
         });
     }
 
+    async #onShortcutContext(event: MouseEvent, shortcutElement: HTMLElement) {
+        const actor = this.actor;
+        const shortcut = this.getShortcutFromElement(shortcutElement);
+        if (!actor || !shortcut || (shortcut.type === "skill" && shortcut.item.isOfType("lore")))
+            return;
+
+        const item =
+            shortcut.type === "attack"
+                ? shortcut.isBlast
+                    ? shortcut.blast?.item
+                    : shortcut.strike?.item
+                : shortcut.item;
+
+        if (!item) return;
+
+        new PF2eHudItemPopup({ actor, item, event }).render(true);
+    }
+
     async #onShortcutClick(event: MouseEvent, shortcutElement: HTMLElement) {
         const actor = this.actor;
-        const shortcut =
-            this.getShortcutFromElement<Exclude<Shortcut, AttackShortcut>>(shortcutElement);
-        if (!actor || !shortcut || shortcut.isEmpty || shortcut.isDisabled) return;
+        const shortcut = this.getShortcutFromElement<InteractibleShortcut>(shortcutElement);
+        if (!actor || !shortcut) return;
 
         const confirmUse = (item: ItemPF2e) => {
             return this.#confirmShortcut("confirm", { name: item.name });
         };
 
         switch (shortcut.type) {
-            case "skill": {
-                if (!shortcut.item) return;
+            case "action": {
+                const item = shortcut.item;
+                if (!item) return;
 
-                if (shortcut.item.isOfType("lore")) {
-                    const slug = getLoreSlug(shortcut.item);
-                    return actor.getStatistic(slug)?.roll({ event } as StatisticRollParameters);
-                } else if (shortcut.actionId === "recall-knowledge" && !shortcut.statistic) {
-                    return rollRecallKnowledge(actor);
-                } else if (shortcut.actionId === "earnIncome") {
-                    return game.pf2e.actions.earnIncome(actor);
+                if (this.getSetting("confirmShortcut") && !(await confirmUse(item))) return;
+
+                if (shortcut.effectUuid && isValidStance(item)) {
+                    return toggleStance(actor as CharacterPF2e, shortcut.effectUuid, event.ctrlKey);
                 }
 
-                rollStatistic(actor, event, shortcut);
-                break;
+                return useAction(item, event);
             }
 
             case "consumable": {
@@ -1576,40 +1587,20 @@ class PersistentShortcuts extends PersistentPart<
                 return consumeItem(event, item);
             }
 
-            case "toggle": {
-                const { domain, itemId, option, optionSelection, alwaysActive, isBlast } = shortcut;
-                const value = alwaysActive
-                    ? true
-                    : optionSelection
-                    ? !actor.rollOptions[domain]?.[`${option}:${optionSelection}`]
-                    : !actor.rollOptions[domain]?.[option];
+            case "skill": {
+                if (!shortcut.item) return;
 
-                return actor.toggleRollOption(
-                    domain,
-                    option,
-                    itemId ?? null,
-                    value,
-                    isBlast ? (optionSelection === "2" ? "1" : "2") : optionSelection
-                );
-            }
-
-            case "action": {
-                const item = shortcut.item;
-                if (!item) return;
-
-                const isUsable = this.isUsableAction(item);
-
-                if (!isUsable && game.user.isGM) {
-                    return new PF2eHudItemPopup({ actor, item, event }).render(true);
+                if (shortcut.item.isOfType("lore")) {
+                    const slug = getLoreSlug(shortcut.item);
+                    return actor.getStatistic(slug)?.roll({ event } as StatisticRollParameters);
+                } else if (shortcut.actionId === "recall-knowledge" && !shortcut.statistic) {
+                    return rollRecallKnowledge(actor);
+                } else if (shortcut.actionId === "earnIncome") {
+                    return game.pf2e.actions.earnIncome(actor);
                 }
 
-                if (this.getSetting("confirmShortcut") && !(await confirmUse(item))) return;
-
-                if (shortcut.effectUuid && isValidStance(item)) {
-                    return toggleStance(actor as CharacterPF2e, shortcut.effectUuid, event.ctrlKey);
-                }
-
-                return useAction(item, event);
+                rollStatistic(actor, event, shortcut);
+                break;
             }
 
             case "spell": {
@@ -1647,6 +1638,23 @@ class PersistentShortcuts extends PersistentPart<
                     spell.parentItem?.consume() ?? collection.entry.cast(spell, { rank, slotId })
                 );
             }
+
+            case "toggle": {
+                const { domain, itemId, option, optionSelection, alwaysActive, isBlast } = shortcut;
+                const value = alwaysActive
+                    ? true
+                    : optionSelection
+                    ? !actor.rollOptions[domain]?.[`${option}:${optionSelection}`]
+                    : !actor.rollOptions[domain]?.[option];
+
+                return actor.toggleRollOption(
+                    domain,
+                    option,
+                    itemId ?? null,
+                    value,
+                    isBlast ? (optionSelection === "2" ? "1" : "2") : optionSelection
+                );
+            }
         }
     }
 
@@ -1663,18 +1671,10 @@ class PersistentShortcuts extends PersistentPart<
         };
 
         switch (action) {
-            case "toggle-damage": {
-                shortcutElement?.classList.toggle("show-damage");
-                break;
-            }
-
-            case "open-attack-popup": {
-                if (actor.isOfType("character")) {
-                    game.pf2e.rollActionMacro({
-                        ...el.dataset,
-                        actorUUID: actor.uuid,
-                    });
-                }
+            case "auxiliary-action": {
+                const strike = await getStrike<CharacterStrike>(el);
+                const auxiliaryActionIndex = Number(el.dataset.auxiliaryActionIndex ?? NaN);
+                strike?.auxiliaryActions?.at(auxiliaryActionIndex)?.execute();
                 break;
             }
 
@@ -1692,26 +1692,6 @@ class PersistentShortcuts extends PersistentPart<
                 return shortcut.blast.damage(event, el);
             }
 
-            case "strike-attack": {
-                const strike = await getStrike(el, true);
-                const variantIndex = Number(el.dataset.variantIndex);
-                return strike?.variants[variantIndex]?.roll({ event });
-            }
-
-            case "strike-damage":
-            case "strike-critical": {
-                const strike = await getStrike(el);
-                const method = el.dataset.action === "strike-damage" ? "damage" : "critical";
-                return strike?.[method]?.({ event });
-            }
-
-            case "auxiliary-action": {
-                const strike = await getStrike<CharacterStrike>(el);
-                const auxiliaryActionIndex = Number(el.dataset.auxiliaryActionIndex ?? NaN);
-                strike?.auxiliaryActions?.at(auxiliaryActionIndex)?.execute();
-                break;
-            }
-
             case "channel-elements": {
                 const action = actor.itemTypes.action.find((x) => x.slug === "channel-elements");
 
@@ -1722,20 +1702,48 @@ class PersistentShortcuts extends PersistentPart<
 
                 return useAction(action, event);
             }
+
+            case "open-attack-popup": {
+                if (actor.isOfType("character")) {
+                    game.pf2e.rollActionMacro({
+                        ...el.dataset,
+                        actorUUID: actor.uuid,
+                    });
+                }
+                break;
+            }
+
+            case "strike-attack": {
+                const strike = await getStrike(el, true);
+                const variantIndex = Number(el.dataset.variantIndex);
+                return strike?.variants[variantIndex]?.roll({ event });
+            }
+
+            case "strike-critical":
+            case "strike-damage": {
+                const strike = await getStrike(el);
+                const method = el.dataset.action === "strike-damage" ? "damage" : "critical";
+                return strike?.[method]?.({ event });
+            }
+
+            case "toggle-damage": {
+                shortcutElement?.classList.toggle("show-damage");
+                break;
+            }
         }
     }
 }
 
 type ShortcutActionEvent =
-    | "toggle-damage"
-    | "open-attack-popup"
+    | "auxiliary-action"
     | "blast-attack"
     | "blast-damage"
+    | "channel-elements"
+    | "open-attack-popup"
     | "strike-attack"
-    | "strike-damage"
     | "strike-critical"
-    | "auxiliary-action"
-    | "channel-elements";
+    | "strike-damage"
+    | "toggle-damage";
 
 type ShortcutType = "action" | "attack" | "consumable" | "spell" | "toggle" | "skill";
 
@@ -1951,6 +1959,7 @@ type BlastShortcut = BaseAttackShortcut & {
 };
 
 type StrikeShortcut = BaseAttackShortcut & {
+    isBlast: false;
     strike: ActionStrike | undefined;
     subtitle: string | undefined;
 };
@@ -1958,12 +1967,12 @@ type StrikeShortcut = BaseAttackShortcut & {
 type AttackShortcut = BlastShortcut | StrikeShortcut;
 
 type Shortcut =
-    | ConsumableShortcut
-    | AttackShortcut
-    | ToggleShortcut
     | ActionShortcut
+    | AttackShortcut
+    | ConsumableShortcut
+    | SkillShortcut
     | SpellShortcut
-    | SkillShortcut;
+    | ToggleShortcut;
 
 type EmptyShortcut = { index: string; groupIndex: string; isEmpty: true };
 
@@ -1979,6 +1988,8 @@ type ShortcutsContext = PersistentContext & {
 };
 
 type AutoFillSetting = "one" | "two";
+
+type InteractibleShortcut = Exclude<Shortcut, AttackShortcut>;
 
 export { PersistentShortcuts };
 export type { AutoFillSetting };

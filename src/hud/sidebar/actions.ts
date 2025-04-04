@@ -44,6 +44,8 @@ import { EXTRAS_ACTIONS_UUIDS } from "./extras";
 import { SKILL_ACTIONS_UUIDS } from "./skills";
 import {hud} from "../../main";
 
+const ELEMENTAL_BLAST_IMG = "icons/magic/symbols/elements-air-earth-fire-water.webp";
+
 const ACTION_TYPES = {
     action: { sort: 0, label: "PF2E.ActionsActionsHeader" },
     reaction: { sort: 1, label: "PF2E.ActionsReactionsHeader" },
@@ -236,7 +238,7 @@ class PF2eHudSidebarActions extends PF2eHudSidebar {
                 cost,
                 costs,
                 itemId: blastOption.itemId,
-                img: item.img,
+                img: ELEMENTAL_BLAST_IMG,
                 label: item.name,
                 blasts: blasts.sort((a, b) => a.label.localeCompare(b.label, game.i18n.lang)),
             };
@@ -959,6 +961,7 @@ type ActionsContext = SidebarContext & {
 type WeaponStrike = StrikeData & { item: WeaponPF2e<ActorPF2e> };
 
 export {
+    ELEMENTAL_BLAST_IMG,
     PF2eHudSidebarActions,
     getActionFrequency,
     getActionResource,
